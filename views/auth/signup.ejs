@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign up — Trip Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/auth.css">
+</head>
+<body>
+
+<div class="navbar">
+  <div class="nav-inner">
+    <a class="brand" href="/">
+      <div class="brand-mark"></div>
+      <div><div class="brand-name">TRIP CONTROL</div><div class="brand-sub">Yearly Planning Console</div></div>
+    </a>
+  </div>
+</div>
+
+<main class="main">
+  <div class="card">
+    <h1>Create your account</h1>
+    <p class="sub">Sign up to start planning your year of travel.</p>
+
+    <% if (typeof errors !== 'undefined' && errors.length > 0) { %>
+      <div class="err">
+        <ul>
+          <% errors.forEach((error) => { %>
+            <li><%= error %></li>
+          <% }) %>
+        </ul>
+      </div>
+    <% } %>
+
+    <form action="/signup" method="POST">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="row">
+        <div class="field">
+          <label for="firstName">First name</label>
+          <input id="firstName" name="firstName" type="text" placeholder="First name" required minlength="2" pattern="[A-Za-z\s]+" autocomplete="given-name">
+        </div>
+        <div class="field">
+          <label for="lastName">Last name</label>
+          <input id="lastName" name="lastName" type="text" placeholder="Last name" required minlength="2" pattern="[A-Za-z\s]+" autocomplete="family-name">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" placeholder="you@example.com" required autocomplete="email">
+      </div>
+
+      <div class="field">
+        <label for="password">Create password</label>
+        <input id="password" name="password" type="password" placeholder="Create a password" required minlength="8" pattern="(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).+" autocomplete="new-password">
+        <div class="hint">At least 8 characters with an uppercase letter, number, and special character.</div>
+      </div>
+
+      <div class="field">
+        <label for="confirmPassword">Confirm password</label>
+        <input id="confirmPassword" name="confirmPassword" type="password" placeholder="Confirm your password" required autocomplete="new-password">
+      </div>
+
+      <label for="terms" class="check-row">
+        <input id="terms" name="terms" type="checkbox" required>
+        <span>I agree to the <a href="#">terms and conditions</a>.</span>
+      </label>
+
+      <button type="submit" class="btn btn-primary">Sign up</button>
+    </form>
+
+    <p class="foot">
+      Already have an account?
+      <a href="/login">Log in</a>
+    </p>
+  </div>
+</main>
+
+</body>
+</html>

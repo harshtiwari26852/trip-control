@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Something went wrong — Trip Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#12162A; --panel:#1B2140; --cream:#EFE9D8; --muted:#8D93B8;
+  --saffron:#E8963C; --teal:#33ABA0;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:
+    radial-gradient(ellipse 1200px 600px at 15% -10%, rgba(232,150,60,0.10), transparent 60%),
+    radial-gradient(ellipse 900px 700px at 100% 10%, rgba(51,171,160,0.10), transparent 55%),
+    var(--ink);
+  color:var(--cream);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;
+}
+.main{text-align:center;max-width:460px;margin:0 auto;padding:0 24px;}
+.code{font-family:'Fraunces',serif;font-size:120px;line-height:1;margin:0 0 8px;background:linear-gradient(90deg,var(--rose, #E1667C),var(--saffron));-webkit-background-clip:text;background-clip:text;color:transparent;}
+h1{font-family:'Fraunces',serif;font-size:24px;margin:0 0 10px;}
+p{color:var(--muted);font-size:14.5px;line-height:1.6;margin:0 0 28px;}
+a.btn{display:inline-block;font-weight:600;font-size:14px;padding:12px 20px;border-radius:9px;background:var(--saffron);color:#1B1204;}
+a.btn:hover{box-shadow:0 6px 20px rgba(232,150,60,0.28);}
+.mono{font-family:'Space Mono',monospace;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-top:32px;}
+</style>
+</head>
+<body>
+<div class="main">
+  <div class="code">500</div>
+  <h1>Something went wrong</h1>
+  <p>An unexpected error occurred. Please try again, or log in again if this keeps happening.</p>
+  <a class="btn" href="/">Go Home</a>
+  <div class="mono">Trip Control</div>
+</div>
+</body>
+</html>

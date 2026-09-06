@@ -1,0 +1,95 @@
+const { DESTINATIONS } = require('../data/destinations');
+const { status } = require('../utils/apiKeys');
+const weather = require('../utils/weather');
+const travel = require('../utils/travel');
+const geo = require('../utils/geo');
+const { getAIPlan } = require('../utils/llm');
+
+function getProfileFromBody(body) {
+  return {
+    home: body.home || 'Mumbai',
+    tripType: body.tripType || 'both',
+    traveler: body.traveler || 'solo',
+    travelers: Number(body.travelers) || 1,
+    kidsAge: Number(body.kidsAge) || 7,
+    radius: Number(body.radius) || 300,
+    slotTarget: Math.min(12, Math.max(1, Number(body.slotTarget) || 12)),
+    weekendBudget: Number(body.weekendBudget) || 8000,
+    majorBudget: Number(body.majorBudget) || 45000,
+    yearlyBudget: Number(body.yearlyBudget) || 150000,
+    durSlider: Number(body.durSlider) || 7
+  };
+}
+
+exports.generatePlan = async (req, res, next) => {
+  try {
+    if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+
+    const profile = getProfileFromBody(req.body || {});
+    // AI plans intentionally do not read data/destinations.js. Gemini discovers
+    // the destinations through its built-in Google Maps grounding tool.
+    const aiPlan = await getAIPlan(profile);
+
+    res.json({
+      ok: true,
+      aiPlan,
+      layers: {
+        planner: !!status.planner,
+        gemini: !!status.gemini,
+        weather: !!status.weather,
+        pricing: !!status.amadeus,
+        geo: !!status.googleMaps
+      },
+      weather: null,
+      pricing: {},
+      warnings: [
+        'Destinations are discovered through Gemini Google Maps grounding.',
+        'Live weather and Amadeus pricing are not included until their APIs are connected to dynamically discovered places.'
+      ].filter(Boolean)
+    });
+  } catch (err) {
+    if (err.code === 'MISSING_API_KEY') {
+      return res.status(503).json({ error: err.message, ok: false });
+    }
+    if (err.code === 'AI_PROVIDER_FAILED') {
+      return res.status(502).json({ error: err.message, ok: false });
+    }
+    next(err);
+  }
+};
+
+exports.getWeather = async (req, res, next) => {
+  try {
+    const name = req.params.name;
+    const d = DESTINATIONS.find(x => x.name.toLowerCase() === String(name).toLowerCase());
+    if (!d) return res.status(404).json({ error: 'Destination not found' });
+    const current = await weather.getCurrentWeather(d.lat, d.lng);
+    const best = weather.bestMonthsForDest(d);
+    res.json({ ok: true, name: d.name, current, best });
+  } catch (err) { next(err); }
+};
+
+exports.getPricing = async (req, res, next) => {
+  try {
+    const name = req.params.name;
+    const d = DESTINATIONS.find(x => x.name.toLowerCase() === String(name).toLowerCase());
+    if (!d) return res.status(404).json({ error: 'Destination not found' });
+    const profile = getProfileFromBody(req.query || {});
+    const flight = await travel.getFlightEstimate(profile.home || 'Mumbai', d, profile.travelers || 1, 30);
+    res.json({
+      ok: true,
+      name: d.name,
+      perDay: d.cost,
+      flight,
+      enabled: status.amadeus
+    });
+  } catch (err) { next(err); }
+};
+
+exports.getAvail = (req, res) => {
+  res.json({
+    ok: true,
+    layers: status,
+    totalDestinations: DESTINATIONS.length
+  });
+};

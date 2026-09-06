@@ -1,0 +1,63 @@
+:root{
+  --ink:#12162A; --panel:#1B2140; --panel-2:#232B52; --paper:#F6F1E4; --cream:#EFE9D8; --muted:#8D93B8;
+  --saffron:#E8963C; --saffron-dim:#7A5A2E; --teal:#33ABA0; --teal-dim:#1E4E4A; --rose:#E1667C;
+  --line:rgba(246,241,228,0.12); --line-strong:rgba(246,241,228,0.22); --radius:14px;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  min-height:100vh;
+  background:
+    radial-gradient(ellipse 1200px 600px at 15% -10%, rgba(232,150,60,0.10), transparent 60%),
+    radial-gradient(ellipse 900px 700px at 100% 10%, rgba(51,171,160,0.10), transparent 55%),
+    var(--ink);
+  color:var(--cream); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;
+}
+h1{font-family:'Fraunces',serif;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;}
+
+.navbar{position:sticky;top:0;z-index:60;background:rgba(18,22,42,0.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;gap:20px;}
+.brand{display:flex;align-items:center;gap:10px;letter-spacing:0.02em;cursor:pointer;}
+.brand-mark{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--saffron);position:relative;flex:none;}
+.brand-mark::after{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--saffron);animation:pulse 2.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:.5;transform:scale(.8);}50%{opacity:1;transform:scale(1);}}
+.brand-name{font-weight:700;font-size:14.5px;}
+.brand-sub{font-size:10.5px;color:var(--muted);font-family:'Space Mono',monospace;letter-spacing:.06em;text-transform:uppercase;}
+
+.main{max-width:440px;margin:0 auto;padding:48px 28px 64px;}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:36px;animation:fadein .4s ease both;}
+@keyframes fadein{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+h1{font-size:26px;font-weight:600;margin:0 0 6px;letter-spacing:-0.01em;}
+.sub{font-size:14px;color:var(--muted);margin:0 0 26px;line-height:1.5;}
+
+.err{background:rgba(225,102,124,0.08);border:1px solid rgba(225,102,124,0.4);border-radius:10px;padding:14px 16px;margin-bottom:22px;}
+.err ul{margin:0;padding-left:18px;color:var(--rose);font-size:13px;}
+.err li{margin:4px 0;}
+.ok{background:rgba(51,171,160,0.08);border:1px solid var(--teal-dim);border-radius:10px;padding:14px 16px;margin-bottom:22px;color:var(--teal);font-size:13px;}
+
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.field{margin-bottom:18px;}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px;}
+input,select{width:100%;background:var(--ink);border:1px solid var(--line-strong);color:var(--cream);padding:12px 14px;border-radius:9px;font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border-color .15s, box-shadow .15s;}
+input::placeholder{color:rgba(141,147,184,0.5);}
+input:focus,select:focus{border-color:var(--teal);box-shadow:0 0 0 2px rgba(51,171,160,0.15);}
+select{appearance:none;cursor:pointer;}
+select option{background:var(--panel);color:var(--cream);}
+.hint{font-size:11.5px;color:var(--muted);margin-top:6px;}
+.check-row{display:flex;align-items:flex-start;gap:10px;margin:4px 0 18px;font-size:13.5px;color:var(--muted);cursor:pointer;}
+.check-row input{width:auto;margin-top:1px;accent-color:var(--teal);cursor:pointer;}
+.check-row a{color:var(--teal);font-weight:600;}
+
+.btn{width:100%;font-weight:600;font-size:14px;padding:13px 20px;border-radius:9px;border:1px solid transparent;cursor:pointer;transition:transform .15s, box-shadow .15s, background .15s;margin-top:6px;}
+.btn:active{transform:translateY(1px);}
+.btn-primary{background:var(--saffron);color:#1B1204;}
+.btn-primary:hover{box-shadow:0 6px 20px rgba(232,150,60,0.28);}
+
+.foot{margin-top:24px;text-align:center;font-size:13.5px;color:var(--muted);}
+.foot a{color:var(--teal);font-weight:600;}
+.foot a:hover{text-decoration:underline;}
+
+.back-link{display:inline-block;margin-bottom:22px;font-size:13px;color:var(--muted);}
+.back-link:hover{color:var(--cream);}
