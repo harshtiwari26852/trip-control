@@ -35,7 +35,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https://maps.gstatic.com", "https://openweathermap.org"],
-      connectSrc: ["'self'", "https://api.openweathermap.org", "https://api.amadeus.com", "https://test.api.amadeus.com", "https://maps.googleapis.com"]
+      connectSrc: ["'self'", "https://api.openweathermap.org", "https://maps.googleapis.com"]
     }
   },
   crossOriginResourcePolicy: { policy: 'cross-origin' }

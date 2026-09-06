@@ -361,7 +361,11 @@ function renderCards(results){
     const p = aiPrice[d.name];
     let priceHTML = '';
     if (p && p.flight) {
-      priceHTML = `<div class="dcard-live-price" title="Live flight estimate from Amadeus"><span class="plane-icon">✈</span> ${inr(p.flight.price)} flight</div>`;
+      const f = p.flight;
+      const txt = f.flights > 0
+        ? `${f.flights} nonstop${f.airlines && f.airlines.length ? ' · ' + f.airlines.slice(0, 3).join(', ') : ''}`
+        : 'no nonstop flights';
+      priceHTML = `<div class="dcard-live-price" title="Live nonstop flight availability ${f.route || ''} from AeroDataBox"><span class="plane-icon">✈</span> ${esc(txt)}</div>`;
     }
     card.innerHTML = `
       <div class="dcard-top"><div><p class="dcard-name">${esc(d.name)}</p><div class="dcard-state">${esc(d.state)}</div></div><span class="pill ${r.isMatch ? 'ok' : ''}">${r.isMatch ? 'MATCH' : 'no match'}</span></div>
@@ -607,7 +611,7 @@ function renderDashboard(){
 }
 document.getElementById('copyPlanBtn').onclick = () => {
   const aiPlan = window.AIGetPlan ? window.AIGetPlan() : null;
-  const lines = [`MY YEARLY TRAVEL PLAN — TRIP CONTROL`, `Home base: ${state.home}`, `Yearly budget: ${inr(state.yearlyBudget)}`, `Source: ${aiPlan ? 'AI (Gemini + live pricing)' : 'manual'}`, ``];
+  const lines = [`MY YEARLY TRAVEL PLAN — TRIP CONTROL`, `Home base: ${state.home}`, `Yearly budget: ${inr(state.yearlyBudget)}`, `Source: ${aiPlan ? 'AI (Gemini + live flight data)' : 'manual'}`, ``];
   lines.push('MAJOR TRIP');
   lines.push(state.majorTrip ? `${state.majorTrip.dest.name}, ${state.majorTrip.dest.state} — ${state.majorTrip.days} days — ${inr(state.majorTrip.cost)}${state.majorTrip.reason ? ' (' + state.majorTrip.reason + ')' : ''}` : 'Not set yet');
   lines.push('', 'WEEKEND CALENDAR');

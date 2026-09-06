@@ -165,6 +165,8 @@ Profile: ${JSON.stringify(profile)}`;
     } catch (_) { /* Response was not JSON. */ }
     const err = new Error(`Gemini request failed (${res.status})${detail ? `: ${detail}` : ''}`);
     err.code = 'AI_PROVIDER_FAILED';
+    err.geminiQuotaLimited = res.status === 429 ||
+      (res.status === 403 && /(quota|rate.?limit|resource exhausted|limit exceeded)/i.test(detail));
     throw err;
   }
   const j = await res.json();
@@ -191,7 +193,8 @@ Profile: ${JSON.stringify(profile)}`;
       parsed.source = 'gemini-google-maps';
       return parsed;
     }
-  } catch (_) {
+  } catch (cause) {
+    if (cause && cause.code === 'AI_PROVIDER_FAILED') throw cause;
     const err = new Error('Gemini returned an invalid plan. Please try again.');
     err.code = 'AI_PROVIDER_FAILED';
     throw err;
@@ -201,13 +204,125 @@ Profile: ${JSON.stringify(profile)}`;
   throw err;
 }
 
+function buildGroqPrompt(profile) {
+  return `You are Trip Control's AI travel planner. Select real, distinct destinations in India and produce a full-year travel plan as VALID JSON ONLY. Do not include Markdown or any text outside the JSON.
+
+Constraints:
+- weekendSlots: 2-3 day trips, within ${profile.radius}km of ${profile.home}, each <= INR ${profile.weekendBudget}/trip.
+- majorTrip: ${profile.durSlider} days, <= INR ${profile.majorBudget}.
+- Total weekend + major spend <= INR ${profile.yearlyBudget}.
+- Each weekend trip must be in a distinct upcoming month. Never repeat a destination.
+- Costs are total INR estimates for all ${profile.travelers || 1} traveler(s).
+- majorTrip must include a day-by-day "itinerary" array.
+
+Return JSON of this exact shape:
+{"weekendSlots":[{"name":"","state":"","cost":0,"days":0,"month":"","reason":""}],"majorTrip":{"name":"","state":"","cost":0,"days":0,"month":"","reason":"","itinerary":[]},"summary":""}
+
+Profile: ${JSON.stringify(profile)}`;
+}
+
+function mapSearchUrl(name, state) {
+  const query = [name, state, 'India'].filter(Boolean).join(', ');
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function parseGroqPlan(text) {
+  let parsed;
+  try {
+    // Some Groq models (including open-weight reasoning models) do not support
+    // OpenAI's response_format JSON mode, but may wrap the requested JSON in
+    // a fenced block. Accept either form while still validating the result.
+    const fenced = String(text).match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    const candidate = (fenced ? fenced[1] : String(text)).trim();
+    parsed = JSON.parse(candidate);
+  } catch (_) {
+    const err = new Error('Groq returned an invalid plan. Please try again.');
+    err.code = 'AI_PROVIDER_FAILED';
+    throw err;
+  }
+  if (!parsed || (!Array.isArray(parsed.weekendSlots) && !parsed.majorTrip)) {
+    const err = new Error('Groq returned an incomplete plan. Please try again.');
+    err.code = 'AI_PROVIDER_FAILED';
+    throw err;
+  }
+  const places = [
+    ...(Array.isArray(parsed.weekendSlots) ? parsed.weekendSlots : []),
+    ...(parsed.majorTrip ? [parsed.majorTrip] : [])
+  ];
+  const seen = new Set();
+  parsed.mapSources = places.filter(place => {
+    const id = `${place.name || ''}|${place.state || ''}`.toLowerCase();
+    if (!place.name || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  }).map(place => ({
+    title: `${place.name}${place.state ? `, ${place.state}` : ''}`,
+    uri: mapSearchUrl(place.name, place.state),
+    placeId: null
+  }));
+  parsed.source = 'groq-google-maps-search';
+  return parsed;
+}
+
+async function callGroq(profile) {
+  const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  let res;
+  try {
+    res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${keys.groq}`
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: 'You return strictly valid JSON and follow the requested schema.' },
+          { role: 'user', content: buildGroqPrompt(profile) }
+        ],
+        temperature: 0.6
+      })
+    });
+  } catch (cause) {
+    const err = new Error('Could not reach Groq. Check your network connection and try again.');
+    err.code = 'AI_PROVIDER_FAILED';
+    err.cause = cause;
+    throw err;
+  }
+  if (!res.ok) {
+    let detail = '';
+    try { const body = await res.json(); detail = body && body.error && body.error.message || ''; } catch (_) { /* non-JSON response */ }
+    const err = new Error(`Groq request failed (${res.status})${detail ? `: ${detail}` : ''}`);
+    err.code = 'AI_PROVIDER_FAILED';
+    throw err;
+  }
+  const body = await res.json();
+  const text = body && body.choices && body.choices[0] && body.choices[0].message && body.choices[0].message.content;
+  if (!text) {
+    const err = new Error('Groq returned no usable plan. Try again with a simpler trip profile.');
+    err.code = 'AI_PROVIDER_FAILED';
+    throw err;
+  }
+  return parseGroqPlan(text);
+}
+
 async function getAIPlan(userProfile) {
-  if (!status.gemini) {
-    const err = new Error('Gemini is not configured. Add a valid GEMINI_API_KEY to .env and restart the server.');
+  if (status.gemini) {
+    try {
+      return await callGemini(userProfile);
+    } catch (err) {
+      if (!err.geminiQuotaLimited || !status.groq) throw err;
+      const plan = await callGroq(userProfile);
+      plan.fallbackReason = 'Gemini quota or rate limit reached; generated with Groq.';
+      return plan;
+    }
+  }
+  if (status.groq) return callGroq(userProfile);
+  {
+    const err = new Error('No AI provider is configured. Add GEMINI_API_KEY, GROQ_API_KEY, or both to .env and restart the server.');
     err.code = 'MISSING_API_KEY';
     throw err;
   }
-  return callGemini(userProfile);
 }
 
 module.exports = { getAIPlan };

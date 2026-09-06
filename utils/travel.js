@@ -1,34 +1,14 @@
-const { keys, status, assertKey } = require('./apiKeys');
-
-let _token = null;
-let _tokenExpiry = 0;
+const { keys, status } = require('./apiKeys');
 
 const cache = new Map();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+const RAPID_HOST = 'aerodatabox.p.rapidapi.com';
 
 const CITY_IATA = {
   Mumbai: 'BOM', Delhi: 'DEL', Bengaluru: 'BLR', Pune: 'PNQ',
   Ahmedabad: 'AMD', Kolkata: 'CCU', Chennai: 'MAA', Hyderabad: 'HYD'
 };
-
-async function getToken() {
-  if (_token && Date.now() < _tokenExpiry) return _token;
-  const body = new URLSearchParams({
-    grant_type: 'client_credentials',
-    client_id: keys.amadeusKey,
-    client_secret: keys.amadeusSecret
-  }).toString();
-  const res = await fetch('https://test.api.amadeus.com/v1/security/oauth2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body
-  });
-  if (!res.ok) throw new Error('Amadeus auth failed');
-  const j = await res.json();
-  _token = j.access_token;
-  _tokenExpiry = Date.now() + (j.expires_in - 60) * 1000;
-  return _token;
-}
 
 function cacheGet(k) {
   const e = cache.get(k);
@@ -38,8 +18,36 @@ function cacheGet(k) {
 }
 function cacheSet(k, v) { cache.set(k, { ts: Date.now(), value: v }); }
 
-async function getFlightEstimate(originCity, dest, travelers, futureDays) {
-  if (!status.amadeus) return null;
+async function getDayDepartures(airportIata, date) {
+  const next = new Date(new Date(date + 'T00:00:00').getTime() + 24 * 60 * 60 * 1000)
+    .toISOString().slice(0, 10);
+  const windows = [
+    [date + 'T00:00', date + 'T12:00'],
+    [date + 'T12:00', next + 'T00:00']
+  ];
+  const headers = {
+    Accept: 'application/json',
+    'X-RapidAPI-Key': keys.aerodatabox,
+    'X-RapidAPI-Host': RAPID_HOST
+  };
+  const all = [];
+  for (const [from, to] of windows) {
+    const url = 'https://' + RAPID_HOST + '/flights/airports/iata/' + airportIata + '/' + from + '/' + to +
+      '?direction=Departure&withLeg=true&withCancelled=false&withCargo=false&withPrivate=false';
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      const err = new Error('AeroDataBox request failed (' + res.status + '): ' + await res.text());
+      err.status = res.status;
+      throw err;
+    }
+    const j = await res.json();
+    if (Array.isArray(j.departures)) all.push(...j.departures);
+  }
+  return all;
+}
+
+async function getFlightAvailability(originCity, dest, travelers, futureDays) {
+  if (!status.aerodatabox) return null;
   const originIata = CITY_IATA[originCity];
   const destIata = CITY_IATA[dest.name];
   if (!originIata || !destIata) return null;
@@ -50,57 +58,32 @@ async function getFlightEstimate(originCity, dest, travelers, futureDays) {
   const cached = cacheGet(ckey);
   if (cached) return cached;
 
+  const route = originIata + ' → ' + destIata;
+  let deps;
   try {
-    const token = await getToken();
-    const url = 'https://test.api.amadeus.com/v2/shopping/flight-offers?originLocationCode=' +
-      originIata + '&destinationLocationCode=' + destIata +
-      '&departureDate=' + date + '&adults=' + travelers +
-      '&max=2&currencyCode=INR';
-    const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
-    if (!res.ok) return null;
-    const j = await res.json();
-    const offer = j.data && j.data[0];
-    if (!offer || !offer.price) return null;
-    const out = {
-      price: Math.round(Number(offer.price.total)),
-      currency: offer.price.currency,
-      airline: (offer.validatingAirlineCodes && offer.validatingAirlineCodes[0]) || null,
-      source: 'amadeus'
-    };
-    cacheSet(ckey, out);
-    return out;
-  } catch (e) { return null; }
+    deps = await getDayDepartures(originIata, date);
+  } catch (e) {
+    if (e.status === 401 || e.status === 403) {
+      const err = new Error('AeroDataBox API key is not valid or not subscribed. See .env');
+      err.code = 'MISSING_API_KEY';
+      throw err;
+    }
+    return null;
+  }
+  const matches = deps.filter(f => {
+    const arrAirport = f && f.arrival && f.arrival.airport;
+    return arrAirport && arrAirport.iata && arrAirport.iata.toUpperCase() === destIata;
+  });
+  const airlines = [...new Set(matches.map(f => f.airline && f.airline.name).filter(Boolean))];
+  const out = {
+    flights: matches.length,
+    airlines,
+    route,
+    date,
+    source: 'aerodatabox'
+  };
+  cacheSet(ckey, out);
+  return out;
 }
 
-async function getHotelEstimate(dest, checkin, checkout) {
-  if (!status.amadeus) return null;
-  const ckey = 'hotel:' + dest.name + ':' + checkin;
-  const cached = cacheGet(ckey);
-  if (cached) return cached;
-  try {
-    const token = await getToken();
-    const url = 'https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-geocode?latitude=' +
-      dest.lat + '&longitude=' + dest.lng + '&radius=30&radiusUnit=KM&hotelSource=ALL';
-    const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
-    if (!res.ok) return null;
-    const j = await res.json();
-    if (!j.data || !j.data[0]) return null;
-    const hotelId = j.data[0].hotelId;
-    const offUrl = 'https://test.api.amadeus.com/v3/shopping/hotel-offers?hotelIds=' + hotelId +
-      '&checkInDate=' + checkin + '&checkOutDate=' + checkout + '&adults=1&roomQuantity=1&paymentPolicy=NONE&bestRateOnly=true';
-    const offRes = await fetch(offUrl, { headers: { Authorization: 'Bearer ' + token } });
-    if (!offRes.ok) return null;
-    const oj = await offRes.json();
-    const offer = oj.data && oj.data[0] && oj.data[0].offers && oj.data[0].offers[0];
-    if (!offer || !offer.price) return null;
-    const out = {
-      pricePerNight: Math.round(Number(offer.price.total) / (offer.price.total !== undefined ? 1 : 1)),
-      currency: offer.price.currency || 'INR',
-      source: 'amadeus'
-    };
-    cacheSet(ckey, out);
-    return out;
-  } catch (e) { return null; }
-}
-
-module.exports = { getFlightEstimate, getHotelEstimate, CITY_IATA };
+module.exports = { getFlightAvailability, CITY_IATA };

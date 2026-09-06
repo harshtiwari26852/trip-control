@@ -23,8 +23,9 @@ function renderAIAvailability() {
   const chips = [];
   const layers = [
     { key: 'gemini', label: 'Gemini' },
+    { key: 'groq', label: 'Groq fallback' },
     { key: 'weather', label: 'Weather' },
-    { key: 'amadeus', label: 'Live Pricing' },
+    { key: 'aerodatabox', label: 'Flight data' },
     { key: 'geminiMaps', label: 'Maps via Gemini' }
   ];
   layers.forEach(l => {
@@ -36,7 +37,7 @@ function renderAIAvailability() {
   if (btn) {
     btn.disabled = !status.planner;
     if (!status.planner) {
-      el.insertAdjacentHTML('afterbegin', '<div class="ai-no-key">AI planning is unavailable. Add a valid Gemini API key, then restart the server.</div>');
+      el.insertAdjacentHTML('afterbegin', '<div class="ai-no-key">AI planning is unavailable. Add a valid Gemini or Groq API key, then restart the server.</div>');
     }
   }
 }
@@ -58,7 +59,7 @@ async function generateAIPlan() {
   btn.innerHTML = 'Generating AI Plan…';
 
   setAIStatus(`
-    <div class="ai-spin"></div> <span>Talking to Gemini, weather and flight APIs — this can take ~20-40s…</span>
+    <div class="ai-spin"></div> <span>Talking to Gemini (with Groq fallback), weather and flight APIs — this can take ~20-40s…</span>
   `, 'info');
 
   const payload = {
@@ -94,7 +95,7 @@ async function generateAIPlan() {
     if (!res.ok) throw new Error('Request failed: ' + res.status);
     const data = await res.json();
     if (!data.aiPlan) {
-      setAIStatus('<b>AI could not generate a plan.</b> Check the GEMINI_API_KEY in .env and try again.', 'error');
+      setAIStatus('<b>AI could not generate a plan.</b> Check GEMINI_API_KEY and GROQ_API_KEY in .env and try again.', 'error');
       return;
     }
 
@@ -109,7 +110,8 @@ async function generateAIPlan() {
     const warning = data.warnings && data.warnings.length
       ? `<br><small>${data.warnings.map(esc).join(' ')}</small>`
       : '';
-    setAIStatus(`<b>AI plan generated with Gemini.</b> ${data.aiPlan.weekendSlots ? data.aiPlan.weekendSlots.length : 0} weekend trips + a major trip were auto-filled into your plan below.${warning}`, 'success');
+    const provider = data.aiPlan.source && data.aiPlan.source.startsWith('groq') ? 'Groq (Gemini fallback)' : 'Gemini';
+    setAIStatus(`<b>AI plan generated with ${provider}.</b> ${data.aiPlan.weekendSlots ? data.aiPlan.weekendSlots.length : 0} weekend trips + a major trip were auto-filled into your plan below.${warning}`, 'success');
   } catch (e) {
     setAIStatus('<b>Error generating AI plan:</b> ' + esc(e.message), 'error');
   } finally {
@@ -186,7 +188,10 @@ function renderAISummary(plan) {
   if (!plan) { box.style.display = 'none'; box.innerHTML = ''; return; }
   box.style.display = 'block';
   box.className = 'ai-summary-box';
-  let html = `<div class="ai-summary-head"><span class="ai-badge">AI PLAN</span><span>Gemini · Google Maps grounding</span></div>`;
+  const providerLabel = plan.source && plan.source.startsWith('groq')
+    ? 'Groq · Google Maps search links'
+    : 'Gemini · Google Maps grounding';
+  let html = `<div class="ai-summary-head"><span class="ai-badge">AI PLAN</span><span>${providerLabel}</span></div>`;
   if (plan.summary) html += `<p class="ai-summary-text">${esc(plan.summary)}</p>`;
   if (plan.majorTrip && plan.majorTrip.reason) {
     html += `<div class="ai-reason"><b>Major trip → ${esc(plan.majorTrip.name)}</b><p>${esc(plan.majorTrip.reason)}</p></div>`;
@@ -213,9 +218,9 @@ function renderLayerInfo() {
   }
   if (PRICING_DATA) {
     const on = Object.keys(PRICING_DATA).length;
-    parts.push(`<span class="ai-data-chip">✈ ${on} live flight prices</span>`);
+    parts.push(`<span class="ai-data-chip">✈ ${on} destinations flight data</span>`);
   } else {
-    parts.push('<span class="ai-data-chip muted">✈ live pricing not enabled</span>');
+    parts.push('<span class="ai-data-chip muted">✈ flight data not enabled</span>');
   }
   el.innerHTML = `<div class="ai-layer-row">${parts.join('')}</div>`;
 }

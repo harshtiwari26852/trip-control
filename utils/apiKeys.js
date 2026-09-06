@@ -2,15 +2,15 @@ require('dotenv').config();
 
 const PREFIXES = {
   weather: '',
-  amadeus: '',
+  aerodatabox: '',
   googleMaps: ''
 };
 
 const keys = {
   weather: process.env.WEATHER_API_KEY || '',
-  amadeusKey: process.env.AMADEUS_API_KEY || '',
-  amadeusSecret: process.env.AMADEUS_API_SECRET || '',
-  gemini: process.env.GEMINI_API_KEY || ''
+  aerodatabox: process.env.AERODATABOX_API_KEY || '',
+  gemini: process.env.GEMINI_API_KEY || '',
+  groq: process.env.GROQ_API_KEY || ''
 };
 
 function isValid(value, type) {
@@ -22,15 +22,16 @@ function isValid(value, type) {
 
 const status = {
   weather: isValid(keys.weather, 'weather'),
-  amadeus: isValid(keys.amadeusKey, 'amadeus') && isValid(keys.amadeusSecret, 'amadeus'),
+  aerodatabox: isValid(keys.aerodatabox, 'aerodatabox'),
   googleMaps: isValid(process.env.GOOGLE_MAPS_API_KEY || '', 'googleMaps'),
-  gemini: isValid(keys.gemini, 'gemini')
+  gemini: isValid(keys.gemini, 'gemini'),
+  groq: isValid(keys.groq, 'groq')
 };
 
 keys.googleMaps = process.env.GOOGLE_MAPS_API_KEY || '';
 
-// The AI planner is available only when a real Gemini key is configured.
-status.planner = status.gemini;
+// Groq can keep planning available when Gemini is unavailable or quota-limited.
+status.planner = status.gemini || status.groq;
 // Gemini Google Maps grounding authenticates with GEMINI_API_KEY, not the
 // separate Google Maps Platform key used by the optional direct Maps API.
 status.geminiMaps = status.gemini;
