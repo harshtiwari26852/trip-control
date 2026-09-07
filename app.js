@@ -3,12 +3,11 @@ const express = require('express');
 const path = require('path');
 const helmet = require('helmet');
 const session = require('express-session');
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 const MongoDBStore = require('connect-mongodb-session')(session);
 
-const rootDir = require("./utils/pathUtil");
-const csrf = require("./utils/csrf");
-const userRouter = require('./routers/userRouter');
+const rootDir = require('./utils/pathUtil');
+const csrf = require('./utils/csrf');
 const authRouter = require('./routers/authRouter');
 const apiRouter = require('./routers/apiRouter');
 const errorControllers = require('./controllers/error');
@@ -24,18 +23,16 @@ if (!MONGODB_URI || !SESSION_SECRET) {
 }
 
 const app = express();
-app.set('view engine', 'ejs');
-app.set('views', 'views');
 
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "https://maps.googleapis.com"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https://maps.gstatic.com", "https://openweathermap.org"],
-      connectSrc: ["'self'", "https://api.openweathermap.org", "https://maps.googleapis.com"]
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://api.fontshare.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "https://api.fontshare.com"],
+      imgSrc: ["'self'", "data:", "https://maps.gstatic.com", "https://openweathermap.org", "https://cdn.dev.beautifuldestinations.app"],
+      connectSrc: ["'self'", "https://api.openweathermap.org", "https://api.amadeus.com", "https://test.api.amadeus.com", "https://maps.googleapis.com", "https://generativelanguage.googleapis.com"]
     }
   },
   crossOriginResourcePolicy: { policy: 'cross-origin' }
@@ -66,15 +63,23 @@ app.use((req, res, next) => {
   req.isLoggedIn = req.session.isLoggedIn;
   res.locals.isLoggedIn = req.session.isLoggedIn;
   res.locals.user = req.session.user || null;
-  res.locals.csrfToken = csrf.token(req);
   next();
 });
 
 app.use(csrf.verify);
-app.use(express.static(path.join(rootDir, 'public')));
-app.use(userRouter);
+
+app.get('/api/csrf-token', csrf.getCsrfToken);
+
+app.use(express.static(path.join(rootDir, 'dist')));
+
 app.use(authRouter);
 app.use(apiRouter);
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET') return next();
+  res.sendFile(path.join(rootDir, 'dist', 'index.html'));
+});
+
 app.use(errorControllers.pageNotFound);
 app.use(errorControllers.handleError);
 

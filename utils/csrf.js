@@ -7,6 +7,11 @@ function token(req) {
   return req.session.csrfToken;
 }
 
+function getCsrfToken(req, res) {
+  const csrfToken = token(req);
+  res.json({ csrfToken });
+}
+
 function verify(req, res, next) {
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
     const sent = (req.body && req.body._csrf) || req.get('X-CSRF-Token');
@@ -17,4 +22,4 @@ function verify(req, res, next) {
   next();
 }
 
-module.exports = { token, verify };
+module.exports = { token, getCsrfToken, verify };

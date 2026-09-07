@@ -1,60 +1,131 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login — Trip Control</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/auth.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Log in — Trip Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/auth.css?v=2">
 </head>
 <body>
 
-<div class="navbar">
-  <div class="nav-inner">
-    <a class="brand" href="/">
-      <div class="brand-mark"></div>
-      <div><div class="brand-name">TRIP CONTROL</div><div class="brand-sub">Yearly Planning Console</div></div>
+  <!-- Mobile-only slim top bar -->
+  <header class="auth-mobile-bar" aria-label="Brand">
+    <a href="/" class="auth-logo">
+      <div class="auth-logo-mark"></div>
+      <div class="auth-logo-text">
+        <span class="auth-logo-name">TRIP CONTROL</span>
+        <span class="auth-logo-sub">Yearly Planning Console</span>
+      </div>
     </a>
-  </div>
-</div>
+  </header>
 
-<main class="main">
-  <div class="card">
-    <h1>Welcome back</h1>
-    <p class="sub">Log in to access your trip planning console.</p>
+  <div class="auth-wrap">
 
-    <% if (typeof errors !== 'undefined' && errors.length > 0) { %>
-      <div class="err">
-        <ul>
-          <% errors.forEach((error) => { %>
-            <li><%= error %></li>
-          <% }) %>
-        </ul>
+    <!-- ═══════════════════════════════════════════════════════
+         BRAND PANEL
+         ═══════════════════════════════════════════════════════ -->
+    <aside class="auth-brand" aria-hidden="true">
+      <div class="auth-brand-inner">
+
+        <!-- Logo -->
+        <a href="/" class="auth-logo">
+          <div class="auth-logo-mark"></div>
+          <div class="auth-logo-text">
+            <span class="auth-logo-name">TRIP CONTROL</span>
+            <span class="auth-logo-sub">Yearly Planning Console</span>
+          </div>
+        </a>
+
+        <!-- Headline -->
+        <h2 class="auth-headline">Plan your year<br>of travel.</h2>
+        <p class="auth-tagline">Set your home city, budget, and radius &mdash; the engine finds every matching destination.</p>
+
+        <!-- CSS-only radar -->
+        <div class="brand-radar" role="img" aria-label="Radar animation showing destinations">
+          <div class="radar-sweep"></div>
+          <div class="radar-center"></div>
+          <div class="radar-blip"></div>
+          <div class="radar-blip"></div>
+          <div class="radar-blip"></div>
+        </div>
+
+        <!-- Stats -->
+        <div class="auth-stats">
+          <div class="auth-stat">
+            <span class="auth-stat-value">28</span>
+            <span class="auth-stat-label">Destinations</span>
+          </div>
+          <div class="auth-stat">
+            <span class="auth-stat-value">6</span>
+            <span class="auth-stat-label">Regions</span>
+          </div>
+          <div class="auth-stat">
+            <span class="auth-stat-value">AI</span>
+            <span class="auth-stat-label">Powered</span>
+          </div>
+        </div>
+
       </div>
-    <% } %>
+    </aside>
 
-    <form action="/login" method="POST">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <div class="field">
-        <label for="email">Email</label>
-        <input id="email" name="email" type="email" placeholder="you@example.com" required autocomplete="username">
+    <!-- ═══════════════════════════════════════════════════════
+         FORM SIDE
+         ═══════════════════════════════════════════════════════ -->
+    <main class="auth-form-side">
+      <div class="form-card">
+
+        <h1>Welcome back</h1>
+        <p class="form-sub">Log in to your planning console.</p>
+
+        <% if (typeof errors !== 'undefined' && errors.length > 0) { %>
+          <div class="form-errors" role="alert" aria-live="polite">
+            <ul>
+              <% errors.forEach((error) => { %>
+                <li><%= error %></li>
+              <% }) %>
+            </ul>
+          </div>
+        <% } %>
+
+        <form action="/login" method="POST" novalidate>
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+          <div class="field">
+            <label for="email">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="you@example.com"
+              required
+              autocomplete="username"
+            >
+          </div>
+
+          <div class="field">
+            <label for="password">Password</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="Enter your password"
+              required
+              autocomplete="current-password"
+            >
+          </div>
+
+          <button type="submit" class="btn-auth">Log in</button>
+        </form>
+
+        <p class="form-foot">New to Trip Control? <a href="/signup">Create an account</a></p>
+
       </div>
+    </main>
 
-      <div class="field">
-        <label for="password">Password</label>
-        <input id="password" name="password" type="password" placeholder="Enter your password" required autocomplete="current-password">
-      </div>
-
-      <button type="submit" class="btn btn-primary">Log in</button>
-    </form>
-
-    <p class="foot">
-      New to Trip Control?
-      <a href="/signup">Create an account</a>
-    </p>
-  </div>
-</main>
+  </div><!-- /.auth-wrap -->
 
 </body>
 </html>

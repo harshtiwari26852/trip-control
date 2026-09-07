@@ -7,17 +7,25 @@
 <title>Trip Control — Yearly Travel Planning</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/trip.css">
+<link rel="stylesheet" href="/css/trip.css?v=2">
 </head>
 <body>
 
-<div class="navbar">
+<!-- ============ NAVBAR ============ -->
+<nav class="navbar">
   <div class="wrap nav-inner">
     <div class="brand" data-nav="home">
       <div class="brand-mark"></div>
-      <div><div class="brand-name">TRIP CONTROL</div><div class="brand-sub">Yearly Planning Console</div></div>
+      <div>
+        <div class="brand-name">TRIP CONTROL</div>
+        <div class="brand-sub">Yearly Planning Console</div>
+      </div>
     </div>
-    <button class="nav-toggle" id="navToggle">☰</button>
+
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+      <span></span><span></span><span></span>
+    </button>
+
     <div class="nav-links" id="navLinks">
       <div class="nav-link" data-nav="home">Home</div>
       <div class="nav-link" data-nav="explore">Explore</div>
@@ -25,258 +33,490 @@
       <div class="nav-link" data-nav="dashboard">My trips</div>
       <div class="nav-link" data-nav="how">How it works</div>
     </div>
+
     <div class="nav-cta">
       <button class="btn btn-primary btn-sm" data-nav="planner">Launch planner</button>
-      <span class="mono" style="font-size:11px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;">Hi, <%= user ? user.firstName : 'Guest' %></span>
+      <span class="nav-user mono">Hi, <%= user ? user.firstName : 'Guest' %></span>
       <form action="/logout" method="POST" style="margin:0;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <button type="submit" class="btn btn-ghost btn-sm">Logout</button>
       </form>
     </div>
   </div>
-</div>
+</nav>
 
-<!-- ============ HOME PAGE ============ -->
-<div class="page" id="page-home"><div class="wrap">
-  <section class="hero" style="padding-bottom:10px;">
-    <div>
-      <div class="eyebrow"><span class="dot"></span>Input → Engine → Database → Output</div>
-      <div id="continueBanner"></div>
-      <h1>Plan a whole year of<br>travel <em>on one screen.</em></h1>
-      <p>Set your budget, your radius, and who's coming — the matching engine checks every destination in the database against your duration, budget, distance and travel-affinity rules, then builds your weekend calendar and major trip itinerary in rupees.</p>
-      <div class="hero-cta">
-        <button class="btn btn-primary" data-nav="planner">Start planning</button>
-        <button class="btn btn-ghost" data-nav="explore">Explore destinations</button>
-      </div>
-    </div>
-    <div>
-      <div class="radar-card">
-        <div class="radar-ring" style="inset:14%;"></div>
-        <div class="radar-ring" style="inset:32%;"></div>
-        <div class="radar-ring" style="inset:50%;"></div>
-        <div class="radar-sweep"></div>
-        <div class="radar-home"></div>
-        <div id="homeRadarDots"></div>
-        <div class="radar-caption" id="homeRadarCaption"></div>
-      </div>
-    </div>
-  </section>
+<!-- ============================================================ -->
+<!-- HOME PAGE                                                     -->
+<!-- ============================================================ -->
+<div class="page" id="page-home">
+  <div class="wrap">
 
-  <section>
-    <div class="section-head"><div class="section-tag">How it works</div><h2>Four layers, one plan</h2><p>Ported straight from the original system architecture — input, logic, database, output.</p></div>
-    <div class="step-strip">
-      <div class="step-card"><div class="step-num">01</div><h4>Tell it your constraints</h4><p>Home city, budget in ₹, travel radius, and who's travelling with you.</p></div>
-      <div class="step-card"><div class="step-num">02</div><h4>The engine runs four checks</h4><p>Duration, budget alignment, distance, and travel-affinity — live, on every destination.</p></div>
-      <div class="step-card"><div class="step-num">03</div><h4>Pull from the database</h4><p>28 Indian destinations served from the server API, with real costs, durations, and best-fit tags.</p></div>
-      <div class="step-card"><div class="step-num">04</div><h4>Get a finished plan</h4><p>A 12-slot weekend calendar and a finalized major-trip itinerary, budgeted in ₹.</p></div>
-    </div>
-  </section>
-
-  <section>
-    <div class="section-head"><div class="section-tag">Snapshot</div><h2>The database at a glance</h2></div>
-    <div class="stat-strip" id="homeStats"></div>
-  </section>
-
-  <section>
-    <div class="section-head"><div class="section-tag">Featured</div><h2>A few places to start with</h2><p>Pulled from the full catalogue — open Explore to filter all 28.</p></div>
-    <div class="feat-rail" id="featRail"></div>
-  </section>
-
-  <section>
-    <div class="section-head"><div class="section-tag">Built for</div><h2>However you travel</h2></div>
-    <div class="persona-grid">
-      <div class="persona-card"><span class="tagchip">solo</span><h4>Solo travellers</h4><p>Offbeat, budget-first matches — cafe towns, treks, and quiet coastlines the engine tags for independent travel.</p></div>
-      <div class="persona-card"><span class="tagchip">family with kids</span><h4>Families with kids</h4><p>Duration and pace suited to children, with an age field that flags kid-friendly stays.</p></div>
-      <div class="persona-card"><span class="tagchip">parents & elders</span><h4>Parents &amp; elders</h4><p>Slower itineraries and a preference for accessible, comfortable accommodation.</p></div>
-    </div>
-  </section>
-</div></div>
-
-<!-- ============ PLANNER PAGE ============ -->
-<div class="page" id="page-planner"><div class="wrap">
-  <section style="padding-bottom:10px;">
-    <div class="section-head"><div class="section-tag">01 · Input Layer</div><h2>Your profile &amp; planning preferences</h2><p>Everything here feeds the decision engine below. Your plan saves to your account automatically.</p></div>
-    <div class="panel input-grid">
-      <div>
-        <div class="field"><label class="flabel">Home city (centre point)</label><select id="homeCity"></select></div>
-        <div class="field"><label class="flabel">Trip type selector</label><div class="radio-row" id="tripTypeRow"></div></div>
-        <div class="field" id="durationField">
-          <label class="flabel">Major trip duration</label>
-          <input type="range" id="durSlider" min="7" max="10" value="7">
-          <div class="range-readout"><span>7 days</span><span id="durReadout">7 days</span><span>10 days</span></div>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-content">
+        <div class="eyebrow"><span class="dot"></span>Input → Engine → Database → Output</div>
+        <div id="continueBanner"></div>
+        <h1>Plan a whole year of<br>travel <em>on one screen.</em></h1>
+        <p>Set your budget, your radius, and who's coming — the matching engine checks every destination against your rules, then builds your weekend calendar and major trip itinerary.</p>
+        <div class="hero-cta">
+          <button class="btn btn-primary" data-nav="planner">Start planning</button>
+          <button class="btn btn-ghost" data-nav="explore">Explore destinations</button>
         </div>
       </div>
-      <div>
-        <div class="field"><label class="flabel">Traveller type</label><div class="radio-row" id="travelerRow"></div></div>
-        <div class="field" id="kidsField" style="display:none;"><label class="flabel">Youngest child's age</label><input type="number" id="kidsAge" min="0" max="17" value="7"></div>
-        <div class="field"><label class="flabel">Travellers on this trip</label><input type="number" id="travelers" min="1" max="12" value="1"></div>
+      <div class="hero-visual">
+        <div class="radar-card">
+          <div class="radar-ring" style="inset:14%;"></div>
+          <div class="radar-ring" style="inset:32%;"></div>
+          <div class="radar-ring" style="inset:50%;"></div>
+          <div class="radar-sweep"></div>
+          <div class="radar-home"></div>
+          <div id="homeRadarDots"></div>
+          <div class="radar-caption" id="homeRadarCaption"></div>
+        </div>
       </div>
-    </div>
-    <div class="panel input-grid" style="margin-top:20px;">
-      <div>
-        <div class="field"><label class="flabel">Local radius — weekend trips</label><input type="range" id="radiusSlider" min="50" max="600" step="10" value="300"><div class="range-readout"><span>50 km</span><span id="radiusReadout">300 km</span><span>600 km</span></div></div>
-        <div class="field"><label class="flabel">Weekend slot target (yearly)</label><input type="number" id="slotTarget" min="1" max="12" value="12"></div>
+    </section>
+
+    <!-- How it works -->
+    <section>
+      <div class="section-head">
+        <div class="section-tag">How it works</div>
+        <h2>Four layers, one plan</h2>
+        <p>Input, logic, database, output — ported straight from the system architecture.</p>
       </div>
-      <div>
-        <div class="field"><label class="flabel">Weekend trip budget (₹, per trip)</label><div class="currency-input"><input type="number" id="weekendBudget" value="8000" step="500"></div></div>
-        <div class="field"><label class="flabel">Major trip budget (₹, per trip)</label><div class="currency-input"><input type="number" id="majorBudget" value="45000" step="1000"></div></div>
-        <div class="field"><label class="flabel">Total yearly budget (₹)</label><div class="currency-input"><input type="number" id="yearlyBudget" value="150000" step="5000"></div></div>
+      <div class="step-strip">
+        <div class="step-card">
+          <div class="step-num">01</div>
+          <h4>Tell it your constraints</h4>
+          <p>Home city, budget in ₹, travel radius, and who's travelling with you.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">02</div>
+          <h4>The engine runs four checks</h4>
+          <p>Duration, budget alignment, distance, and travel-affinity — live, on every destination.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">03</div>
+          <h4>Pull from the database</h4>
+          <p>28 Indian destinations served from the server API, with real costs, durations, and best-fit tags.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">04</div>
+          <h4>Get a finished plan</h4>
+          <p>A 12-slot weekend calendar and a finalized major-trip itinerary, budgeted in ₹.</p>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <hr class="rule">
-  <section>
-    <div class="section-head"><div class="section-tag">02 · Decision Support &amp; Logic Layer</div><h2>Trip matching &amp; filtering engine</h2><p>Four checks run against every destination: duration fit, budget alignment, distance-from-home, and travel-affinity match.</p></div>
-    <div class="ai-toolbar">
-      <div class="ai-toolbar-info">
-        <strong>AI Yearly Planner</strong>
-        <span>Route your profile through Gemini + live weather + flight pricing to auto-build your whole year.</span>
+    <!-- Stats -->
+    <section>
+      <div class="section-head">
+        <div class="section-tag">Snapshot</div>
+        <h2>The database at a glance</h2>
       </div>
-      <button class="btn btn-primary" id="aiGenerateBtn">✨ Generate AI Plan</button>
-      <div class="ai-availability" id="aiAvail"></div>
-    </div>
-    <div class="ai-status" id="aiStatus" style="display:none;"></div>
-    <div class="panel">
-      <div class="engine-grid" id="engineGrid"></div>
-      <div class="run-row"><div class="overall-match">Overall matches this query: <b id="overallCount">0</b> <span class="mono" style="color:var(--muted);">/ <span id="totalDestCount">0</span> destinations</span></div><button class="btn btn-primary" id="runBtn">Run matching engine</button></div>
-    </div>
-  </section>
+      <div class="stat-strip" id="homeStats"></div>
+    </section>
 
-  <hr class="rule">
-  <section>
-    <div class="section-head"><div class="section-tag">02b · Travel Affinity &amp; Accommodation Match</div><h2>Matched destinations</h2><p>Add a match straight to your weekend calendar or set it as this year's major trip.</p></div>
-    <div id="aiLayerInfo"></div>
-    <div class="tabs" id="modeTabs"></div>
-    <div class="card-grid" id="cardGrid"></div>
-  </section>
-
-  <hr class="rule">
-  <section>
-    <div class="section-head"><div class="section-tag">03 · Output Layer</div><h2>Your plan so far</h2><p>Full detail, readiness score, and export live on the <a href="#/dashboard" style="color:var(--teal);">My trips</a> page.</p></div>
-    <div id="aiSummaryBox" style="display:none;"></div>
-    <div class="output-grid">
-      <div><h3 style="margin:0 0 14px;font-size:16px;">Weekend calendar</h3><div class="cal-grid" id="calGrid"></div></div>
-      <div><h3 style="margin:0 0 14px;font-size:16px;">Major trip</h3><div id="majorTripCard"></div></div>
-    </div>
-    <div class="panel budget-summary" style="margin-top:24px;">
-      <div class="budget-row"><span>Yearly budget used</span><b id="budgetUsedLabel">₹0 of ₹0</b></div>
-      <div class="budget-track"><div class="budget-fill" id="budgetFillBar"></div></div>
-      <div class="budget-warn" id="budgetWarnText" style="display:none;">Over your yearly budget — remove a slot or lower the major trip cost.</div>
-    </div>
-  </section>
-</div></div>
-
-<!-- ============ EXPLORE PAGE ============ -->
-<div class="page" id="page-explore"><div class="wrap">
-  <section style="padding-bottom:16px;">
-    <div class="section-head"><div class="section-tag">Master Travel Database</div><h2>Explore every destination</h2><p>Search and filter the full catalogue, independent of your planner settings.</p></div>
-    <div class="explore-context" id="exploreContext"></div>
-    <div class="filter-bar">
-      <input type="text" id="exSearch" placeholder="Search name or state…">
-      <select id="exRegion"></select>
-      <select id="exSort">
-        <option value="name">Sort: A–Z</option>
-        <option value="distance">Sort: distance</option>
-        <option value="price">Sort: price (low first)</option>
-        <option value="duration">Sort: duration (short first)</option>
-      </select>
-      <div class="chip-toggle" id="exTags">
-        <button class="chip" data-tag="solo">Solo</button>
-        <button class="chip" data-tag="family">Family with kids</button>
-        <button class="chip" data-tag="elders">Parents &amp; elders</button>
+    <!-- Featured destinations -->
+    <section>
+      <div class="section-head">
+        <div class="section-tag">Featured</div>
+        <h2>A few places to start with</h2>
+        <p>Pulled from the full catalogue — open Explore to filter all 28.</p>
       </div>
-    </div>
-    <div class="result-count" id="exCount"></div>
-    <div class="explore-grid" id="exploreGrid"></div>
-  </section>
-</div></div>
+      <div class="feat-rail" id="featRail"></div>
+    </section>
 
-<!-- ============ DASHBOARD PAGE ============ -->
-<div class="page" id="page-dashboard"><div class="wrap">
-  <section>
-    <div class="section-head"><div class="section-tag">My Trips</div><h2>Your yearly plan</h2><p>Everything you've added, in one place — export it, edit it, or start over.</p></div>
-    <div class="readiness-strip" id="readinessStrip"></div>
-
-    <div class="output-grid">
-      <div><h3 style="margin:0 0 14px;font-size:16px;">Weekend calendar</h3><div class="cal-grid" id="calGrid2"></div></div>
-      <div><h3 style="margin:0 0 14px;font-size:16px;">Major trip</h3><div id="majorTripCard2"></div></div>
-    </div>
-
-    <div class="panel budget-summary" style="margin-top:24px;">
-      <div class="budget-row"><span>Yearly budget used</span><b id="budgetUsedLabel2">₹0 of ₹0</b></div>
-      <div class="budget-track"><div class="budget-fill" id="budgetFillBar2"></div></div>
-      <div class="budget-warn" id="budgetWarnText2" style="display:none;">Over your yearly budget — remove a slot or lower the major trip cost.</div>
-      <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);">
-        <span>Weekend spend: <b class="mono" id="weekendSpendLabel2" style="color:var(--cream);">₹0</b></span>
-        <span>Major trip spend: <b class="mono" id="majorSpendLabel2" style="color:var(--cream);">₹0</b></span>
+    <!-- Persona grid -->
+    <section>
+      <div class="section-head">
+        <div class="section-tag">Built for</div>
+        <h2>However you travel</h2>
       </div>
-    </div>
-
-    <div class="dash-actions">
-      <button class="btn btn-primary btn-sm" data-nav="planner">Edit in planner</button>
-      <button class="btn btn-ghost btn-sm" id="copyPlanBtn">Copy plan as text</button>
-      <button class="btn btn-danger btn-sm" id="resetPlanBtn">Reset plan</button>
-    </div>
-  </section>
-</div></div>
-
-<!-- ============ HOW IT WORKS PAGE ============ -->
-<div class="page" id="page-how"><div class="wrap">
-  <section>
-    <div class="section-head"><div class="section-tag">Architecture</div><h2>How Trip Control is built</h2><p>Ported from the original system-architecture roadmap: an input layer, a decision-support and logic layer, a persistence layer, and an output layer.</p></div>
-
-    <div class="arch-layer">
-      <span class="tag">Input layer</span><h3>User profile &amp; planning preferences</h3>
-      <p style="color:var(--muted);font-size:13.5px;margin:0;">Trip type, yearly trip count, budget constraints in rupees, traveller type, and accommodation preference.</p>
-    </div>
-    <div class="arch-arrow">↓</div>
-    <div class="arch-layer">
-      <span class="tag">Decision support &amp; logic layer (middleware)</span><h3>Trip matching &amp; filtering engine</h3>
-      <p style="color:var(--muted);font-size:13.5px;margin:0;">Four modules run on every destination before it can be called a match.</p>
-      <div class="arch-sub-grid">
-        <div class="arch-sub"><h5>Geospatial filter &amp; location search</h5><p>Great-circle distance from your home city, checked against a configurable radius (default 300 km).</p></div>
-        <div class="arch-sub"><h5>Duration check module</h5><p>Fixed logic for 2–3 day weekends, or a 7–10 day window for major vacations.</p></div>
-        <div class="arch-sub"><h5>Budget alignment module</h5><p>Per-trip budget in ₹, checked against cost-per-day × travellers × duration.</p></div>
-        <div class="arch-sub"><h5>Distance check module</h5><p>Applies to weekend trips only — major trips are unrestricted by radius.</p></div>
+      <div class="persona-grid">
+        <div class="persona-card">
+          <span class="tagchip">solo</span>
+          <h4>Solo travellers</h4>
+          <p>Offbeat, budget-first matches — cafe towns, treks, and quiet coastlines tagged for independent travel.</p>
+        </div>
+        <div class="persona-card">
+          <span class="tagchip">family with kids</span>
+          <h4>Families with kids</h4>
+          <p>Duration and pace suited to children, with an age field that flags kid-friendly stays.</p>
+        </div>
+        <div class="persona-card">
+          <span class="tagchip">parents &amp; elders</span>
+          <h4>Parents &amp; elders</h4>
+          <p>Slower itineraries and a preference for accessible, comfortable accommodation.</p>
+        </div>
       </div>
-    </div>
-    <div class="arch-arrow">↓</div>
-    <div class="arch-layer">
-      <span class="tag">Persistence layer</span><h3>Master travel database</h3>
-      <p style="color:var(--muted);font-size:13.5px;margin:0;">28 destinations across India, each with coordinates, cost per day, duration range, and traveller-affinity tags — served from the API and browsable on the Explore page.</p>
-    </div>
-    <div class="arch-arrow">↓</div>
-    <div class="arch-layer">
-      <span class="tag">Output layer</span><h3>Itinerary generation &amp; scheduling</h3>
-      <p style="color:var(--muted);font-size:13.5px;margin:0;">A finalized major-trip day-by-day plan, and a curated 12-slot yearly weekend calendar — both on your My Trips dashboard, saved to your account.</p>
-    </div>
-  </section>
+    </section>
 
-  <hr class="rule">
-  <section>
-    <div class="section-head"><div class="section-tag">Rules reference</div><h2>What the engine checks</h2></div>
-    <ul class="rule-list">
-      <li><b>Duration</b> Weekend trips run 2–3 days (short-stay spots like Matheran are priced for their actual stay). Major trips run 7–10 days — only destinations that can fill your chosen window on the slider match.</li>
-      <li><b>Radius</b> Weekend candidates must fall within your local radius (50–600 km, default 300 km) of your home city.</li>
-      <li><b>Budget</b> Cost = cost-per-day × travellers × duration, checked against your weekend or major-trip budget in ₹.</li>
-      <li><b>Affinity</b> Every destination is tagged solo, family with kids, and/or parents &amp; elders — only matching tags pass.</li>
-      <li><b>Yearly cap</b> Weekend spend plus major-trip spend is tracked against your total yearly budget, and a destination can only be booked once per year.</li>
-    </ul>
-  </section>
-</div></div>
-
-<div class="wrap"><footer>
-  <div class="legend-row">
-    <span><span class="legend-dot" style="background:var(--saffron);"></span>Input / control</span>
-    <span><span class="legend-dot" style="background:var(--teal);"></span>Match / pass</span>
-    <span><span class="legend-dot" style="background:var(--rose);"></span>Over budget</span>
-    <span><span class="legend-dot" style="background:var(--muted);"></span>No match</span>
   </div>
-  <div>Trip Control · all prices in ₹ · plan saved to your account</div>
-</footer></div>
+</div>
 
-<div class="modal-overlay" id="modalOverlay"><div class="modal-box" id="modalBox"></div></div>
+<!-- ============================================================ -->
+<!-- PLANNER PAGE                                                  -->
+<!-- ============================================================ -->
+<div class="page" id="page-planner">
+  <div class="wrap">
+
+    <!-- 01 · Input Layer -->
+    <section>
+      <div class="section-head">
+        <div class="section-tag">01 · Input Layer</div>
+        <h2>Your profile &amp; planning preferences</h2>
+        <p>Everything here feeds the decision engine below. Your plan saves to your account automatically.</p>
+      </div>
+
+      <div class="input-grid">
+        <div class="panel">
+          <div class="field">
+            <label class="flabel">Home city (centre point)</label>
+            <select id="homeCity"></select>
+          </div>
+          <div class="field">
+            <label class="flabel">Trip type selector</label>
+            <div class="radio-row" id="tripTypeRow"></div>
+          </div>
+          <div class="field" id="durationField">
+            <label class="flabel">Major trip duration</label>
+            <input type="range" id="durSlider" min="7" max="10" value="7">
+            <div class="range-readout">
+              <span class="mono">7 days</span>
+              <span class="mono range-val" id="durReadout">7 days</span>
+              <span class="mono">10 days</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="field">
+            <label class="flabel">Traveller type</label>
+            <div class="radio-row" id="travelerRow"></div>
+          </div>
+          <div class="field" id="kidsField" style="display:none;">
+            <label class="flabel">Youngest child's age</label>
+            <input type="number" id="kidsAge" min="0" max="17" value="7">
+          </div>
+          <div class="field">
+            <label class="flabel">Travellers on this trip</label>
+            <input type="number" id="travelers" min="1" max="12" value="1">
+          </div>
+        </div>
+      </div>
+
+      <div class="input-grid" style="margin-top:16px;">
+        <div class="panel">
+          <div class="field">
+            <label class="flabel">Local radius — weekend trips</label>
+            <input type="range" id="radiusSlider" min="50" max="600" step="10" value="300">
+            <div class="range-readout">
+              <span class="mono">50 km</span>
+              <span class="mono range-val" id="radiusReadout">300 km</span>
+              <span class="mono">600 km</span>
+            </div>
+          </div>
+          <div class="field">
+            <label class="flabel">Weekend slot target (yearly)</label>
+            <input type="number" id="slotTarget" min="1" max="12" value="12">
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="field">
+            <label class="flabel">Weekend trip budget <span class="mono">(₹ per trip)</span></label>
+            <div class="currency-input">
+              <input type="number" id="weekendBudget" value="8000" step="500">
+            </div>
+          </div>
+          <div class="field">
+            <label class="flabel">Major trip budget <span class="mono">(₹ per trip)</span></label>
+            <div class="currency-input">
+              <input type="number" id="majorBudget" value="45000" step="1000">
+            </div>
+          </div>
+          <div class="field">
+            <label class="flabel">Total yearly budget <span class="mono">(₹)</span></label>
+            <div class="currency-input">
+              <input type="number" id="yearlyBudget" value="150000" step="5000">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="rule">
+
+    <!-- AI Generate Card -->
+    <section>
+      <div class="ai-toolbar">
+        <div class="ai-toolbar-info">
+          <div class="ai-toolbar-title">✨ AI Yearly Planner</div>
+          <span class="ai-toolbar-desc">Route your profile through Gemini + live weather + flight pricing to auto-build your whole year.</span>
+        </div>
+        <div class="ai-toolbar-right">
+          <button class="btn btn-primary" id="aiGenerateBtn">Generate AI Plan</button>
+          <div class="ai-availability" id="aiAvail"></div>
+        </div>
+      </div>
+      <div class="ai-status" id="aiStatus" style="display:none;"></div>
+    </section>
+
+    <hr class="rule">
+
+    <!-- 02 · Engine -->
+    <section>
+      <div class="section-head">
+        <div class="section-tag">02 · Decision Support &amp; Logic Layer</div>
+        <h2>Trip matching &amp; filtering engine</h2>
+        <p>Four checks run against every destination: duration fit, budget alignment, distance-from-home, and travel-affinity match.</p>
+      </div>
+      <div class="panel">
+        <div class="engine-grid" id="engineGrid"></div>
+        <div class="run-row">
+          <div class="overall-match">
+            Overall matches: <b id="overallCount">0</b>
+            <span class="mono" style="color:var(--muted);">/ <span id="totalDestCount">0</span> destinations</span>
+          </div>
+          <button class="btn btn-primary" id="runBtn">Run matching engine</button>
+        </div>
+      </div>
+    </section>
+
+    <hr class="rule">
+
+    <!-- 02b · Matched destinations -->
+    <section>
+      <div class="section-head">
+        <div class="section-tag">02b · Travel Affinity &amp; Accommodation Match</div>
+        <h2>Matched destinations</h2>
+        <p>Add a match straight to your weekend calendar or set it as this year's major trip.</p>
+      </div>
+      <div id="aiLayerInfo"></div>
+      <div class="tabs" id="modeTabs"></div>
+      <div class="card-grid" id="cardGrid"></div>
+    </section>
+
+    <hr class="rule">
+
+    <!-- 03 · Output Layer -->
+    <section>
+      <div class="section-head">
+        <div class="section-tag">03 · Output Layer</div>
+        <h2>Your plan so far</h2>
+        <p>Full detail, readiness score, and export live on the <a href="#/dashboard" style="color:var(--teal);">My trips</a> page.</p>
+      </div>
+
+      <div id="aiSummaryBox" style="display:none;"></div>
+
+      <div class="output-grid">
+        <div>
+          <h3 class="output-label">Weekend calendar</h3>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
+        <div>
+          <h3 class="output-label">Major trip</h3>
+          <div id="majorTripCard"></div>
+        </div>
+      </div>
+
+      <div class="panel budget-summary" style="margin-top:24px;">
+        <div class="budget-row">
+          <span>Yearly budget used</span>
+          <b id="budgetUsedLabel" class="mono">₹0 of ₹0</b>
+        </div>
+        <div class="budget-track">
+          <div class="budget-fill" id="budgetFillBar"></div>
+        </div>
+        <div class="budget-warn" id="budgetWarnText" style="display:none;">
+          Over your yearly budget — remove a slot or lower the major trip cost.
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- EXPLORE PAGE                                                  -->
+<!-- ============================================================ -->
+<div class="page" id="page-explore">
+  <div class="wrap">
+    <section>
+      <div class="section-head">
+        <div class="section-tag">Master Travel Database</div>
+        <h2>Explore every destination</h2>
+        <p>Search and filter the full catalogue, independent of your planner settings.</p>
+      </div>
+      <div class="explore-context" id="exploreContext"></div>
+
+      <div class="filter-bar">
+        <input type="text" id="exSearch" placeholder="Search name or state…" class="filter-search">
+        <select id="exRegion" class="filter-select"></select>
+        <select id="exSort" class="filter-select">
+          <option value="name">Sort: A–Z</option>
+          <option value="distance">Sort: distance</option>
+          <option value="price">Sort: price (low first)</option>
+          <option value="duration">Sort: duration (short first)</option>
+        </select>
+        <div class="chip-toggle" id="exTags">
+          <button class="chip" data-tag="solo">Solo</button>
+          <button class="chip" data-tag="family">Family with kids</button>
+          <button class="chip" data-tag="elders">Parents &amp; elders</button>
+        </div>
+      </div>
+
+      <div class="result-count" id="exCount"></div>
+      <div class="explore-grid" id="exploreGrid"></div>
+    </section>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- DASHBOARD PAGE                                                -->
+<!-- ============================================================ -->
+<div class="page" id="page-dashboard">
+  <div class="wrap">
+    <section>
+      <div class="section-head">
+        <div class="section-tag">My Trips</div>
+        <h2>Your yearly plan</h2>
+        <p>Everything you've added, in one place — export it, edit it, or start over.</p>
+      </div>
+
+      <div class="readiness-strip" id="readinessStrip"></div>
+
+      <div class="dash-actions">
+        <button class="btn btn-primary btn-sm" data-nav="planner">Edit in planner</button>
+        <button class="btn btn-ghost btn-sm" id="copyPlanBtn">Copy plan as text</button>
+        <button class="btn btn-danger btn-sm" id="resetPlanBtn">Reset plan</button>
+      </div>
+
+      <div class="output-grid" style="margin-top:28px;">
+        <div>
+          <h3 class="output-label">Weekend calendar</h3>
+          <div class="cal-grid" id="calGrid2"></div>
+        </div>
+        <div>
+          <h3 class="output-label">Major trip</h3>
+          <div id="majorTripCard2"></div>
+        </div>
+      </div>
+
+      <div class="panel budget-summary" style="margin-top:24px;">
+        <div class="budget-row">
+          <span>Yearly budget used</span>
+          <b id="budgetUsedLabel2" class="mono">₹0 of ₹0</b>
+        </div>
+        <div class="budget-track">
+          <div class="budget-fill" id="budgetFillBar2"></div>
+        </div>
+        <div class="budget-warn" id="budgetWarnText2" style="display:none;">
+          Over your yearly budget — remove a slot or lower the major trip cost.
+        </div>
+        <div class="budget-detail">
+          <span>Weekend spend: <b class="mono" id="weekendSpendLabel2" style="color:var(--cream);">₹0</b></span>
+          <span>Major trip spend: <b class="mono" id="majorSpendLabel2" style="color:var(--cream);">₹0</b></span>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- HOW IT WORKS PAGE                                             -->
+<!-- ============================================================ -->
+<div class="page" id="page-how">
+  <div class="wrap">
+    <section>
+      <div class="section-head">
+        <div class="section-tag">Architecture</div>
+        <h2>How Trip Control is built</h2>
+        <p>Ported from the original system-architecture roadmap: an input layer, a decision-support and logic layer, a persistence layer, and an output layer.</p>
+      </div>
+
+      <div class="arch-timeline">
+        <div class="arch-layer">
+          <span class="tag">Input layer</span>
+          <h3>User profile &amp; planning preferences</h3>
+          <p>Trip type, yearly trip count, budget constraints in rupees, traveller type, and accommodation preference.</p>
+        </div>
+        <div class="arch-arrow">↓</div>
+        <div class="arch-layer">
+          <span class="tag">Decision support &amp; logic layer (middleware)</span>
+          <h3>Trip matching &amp; filtering engine</h3>
+          <p>Four modules run on every destination before it can be called a match.</p>
+          <div class="arch-sub-grid">
+            <div class="arch-sub">
+              <h5>Geospatial filter &amp; location search</h5>
+              <p>Great-circle distance from your home city, checked against a configurable radius (default 300 km).</p>
+            </div>
+            <div class="arch-sub">
+              <h5>Duration check module</h5>
+              <p>Fixed logic for 2–3 day weekends, or a 7–10 day window for major vacations.</p>
+            </div>
+            <div class="arch-sub">
+              <h5>Budget alignment module</h5>
+              <p>Per-trip budget in ₹, checked against cost-per-day × travellers × duration.</p>
+            </div>
+            <div class="arch-sub">
+              <h5>Distance check module</h5>
+              <p>Applies to weekend trips only — major trips are unrestricted by radius.</p>
+            </div>
+          </div>
+        </div>
+        <div class="arch-arrow">↓</div>
+        <div class="arch-layer">
+          <span class="tag">Persistence layer</span>
+          <h3>Master travel database</h3>
+          <p>28 destinations across India, each with coordinates, cost per day, duration range, and traveller-affinity tags — served from the API and browsable on the Explore page.</p>
+        </div>
+        <div class="arch-arrow">↓</div>
+        <div class="arch-layer">
+          <span class="tag">Output layer</span>
+          <h3>Itinerary generation &amp; scheduling</h3>
+          <p>A finalized major-trip day-by-day plan, and a curated 12-slot yearly weekend calendar — both on your My Trips dashboard, saved to your account.</p>
+        </div>
+      </div>
+    </section>
+
+    <hr class="rule">
+
+    <section>
+      <div class="section-head">
+        <div class="section-tag">Rules reference</div>
+        <h2>What the engine checks</h2>
+      </div>
+      <ul class="rule-list">
+        <li><b>Duration</b> Weekend trips run 2–3 days. Major trips run 7–10 days — only destinations that fill your chosen window match.</li>
+        <li><b>Radius</b> Weekend candidates must fall within your local radius (50–600 km, default 300 km) of your home city.</li>
+        <li><b>Budget</b> Cost = cost-per-day × travellers × duration, checked against your weekend or major-trip budget in ₹.</li>
+        <li><b>Affinity</b> Every destination is tagged solo, family with kids, and/or parents &amp; elders — only matching tags pass.</li>
+        <li><b>Yearly cap</b> Weekend spend plus major-trip spend is tracked against your total yearly budget, and a destination can only be booked once per year.</li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<!-- ============ FOOTER ============ -->
+<div class="wrap">
+  <footer class="site-footer">
+    <div class="legend-row">
+      <span><span class="legend-dot" style="background:var(--saffron);"></span>Input / control</span>
+      <span><span class="legend-dot" style="background:var(--teal);"></span>Match / pass</span>
+      <span><span class="legend-dot" style="background:var(--rose);"></span>Over budget</span>
+      <span><span class="legend-dot" style="background:var(--muted);"></span>No match</span>
+    </div>
+    <div class="footer-copy">Trip Control · all prices in ₹ · plan saved to your account</div>
+  </footer>
+</div>
+
+<!-- ============ MODAL ============ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<!-- ============ TOAST ============ -->
 <div class="toast" id="toast"></div>
 
 <script src="/js/trip.js" defer></script>

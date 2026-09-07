@@ -145,7 +145,7 @@ function applyAIPlan(plan) {
       name: plan.majorTrip.name,
       state: plan.majorTrip.state || 'India',
       tags: [],
-      hl: plan.majorTrip.reason || 'Google Maps-grounded destination.'
+      hl: plan.majorTrip.reason || 'AI-selected destination.'
     };
     state.majorTrip = {
       dest,
@@ -189,8 +189,8 @@ function renderAISummary(plan) {
   box.style.display = 'block';
   box.className = 'ai-summary-box';
   const providerLabel = plan.source && plan.source.startsWith('groq')
-    ? 'Groq · Google Maps search links'
-    : 'Gemini · Google Maps grounding';
+    ? 'Groq'
+    : plan.source === 'gemini-google-maps' ? 'Gemini · Google Maps grounding' : 'Gemini';
   let html = `<div class="ai-summary-head"><span class="ai-badge">AI PLAN</span><span>${providerLabel}</span></div>`;
   if (plan.summary) html += `<p class="ai-summary-text">${esc(plan.summary)}</p>`;
   if (plan.majorTrip && plan.majorTrip.reason) {
