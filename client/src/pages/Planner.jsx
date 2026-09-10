@@ -3,9 +3,9 @@ import { MapPin, Plus, Sparkles } from 'lucide-react'
 import { apiFetch } from '../lib/api'
 
 const initialPlan = {
-  home: 'Mumbai', tripType: 'both', mode: 'weekend', traveler: 'solo', travelers: 1,
+  home: 'Mumbai', tripType: 'weekend', mode: 'weekend', traveler: 'solo', travelers: 1,
   kidsAge: 7, radius: 300, slotTarget: 12, weekendBudget: 8000, majorBudget: 45000,
-  yearlyBudget: 150000, durSlider: 7, weekendSlots: Array(12).fill(null), majorTrip: null,
+  majorTripCount: 1, yearlyBudget: 96000, durSlider: 7, weekendSlots: Array(12).fill(null), majorTrip: null,
 }
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const money = (value) => `₹${Math.round(value || 0).toLocaleString('en-IN')}`
@@ -154,7 +154,35 @@ export default function Planner() {
   const totalSpend = weekendSpend + majorSpend
 
   function update(key, value) {
-    setPlan((p) => ({ ...p, [key]: value }))
+    setPlan((p) => {
+      const next = { ...p, [key]: value }
+      if (key === 'tripType') {
+        if (value === 'weekend') next.mode = 'weekend'
+        else if (value === 'vacation') next.mode = 'vacation'
+      }
+      if (next.tripType === 'weekend') {
+        if (key === 'weekendBudget' || key === 'slotTarget') {
+          next.yearlyBudget = next.weekendBudget * next.slotTarget
+        } else if (key === 'yearlyBudget') {
+          next.weekendBudget = next.slotTarget ? Math.round(next.yearlyBudget / next.slotTarget) : 0
+        }
+      } else if (next.tripType === 'vacation') {
+        if (key === 'majorBudget' || key === 'majorTripCount') {
+          next.yearlyBudget = next.majorBudget * next.majorTripCount
+        } else if (key === 'yearlyBudget') {
+          next.majorBudget = next.majorTripCount ? Math.round(next.yearlyBudget / next.majorTripCount) : 0
+        }
+      } else {
+        if (key === 'weekendBudget' || key === 'slotTarget' || key === 'majorBudget' || key === 'majorTripCount') {
+          next.yearlyBudget = next.weekendBudget * next.slotTarget + next.majorBudget * next.majorTripCount
+        } else if (key === 'yearlyBudget') {
+          const majorTotal = next.majorBudget * next.majorTripCount
+          const remain = next.yearlyBudget - majorTotal
+          next.weekendBudget = next.slotTarget ? Math.round(Math.max(0, remain) / next.slotTarget) : 0
+        }
+      }
+      return next
+    })
   }
   function addTrip(item) {
     setPlan((p) => {
@@ -307,12 +335,14 @@ function travelerChange(value) {
                 </select>
               </Field>
 
+              {plan.tripType === 'both' && (
               <Field label="Planner view">
                 <div className="mt-2 flex rounded-full bg-muted p-1">
                   <Toggle active={plan.mode === 'weekend'} onClick={() => update('mode', 'weekend')}>Weekends</Toggle>
                   <Toggle active={plan.mode === 'vacation'} onClick={() => update('mode', 'vacation')}>Major trip</Toggle>
                 </div>
               </Field>
+              )}
 
               <Field label="Traveller type">
                 <select value={plan.traveler} onChange={(e) => travelerChange(e.target.value)} className={selectClass}>
@@ -340,6 +370,7 @@ function travelerChange(value) {
                 />
               )}
 
+              {plan.tripType !== 'vacation' && (
               <RangeInput
                 label="Weekend radius"
                 value={plan.radius}
@@ -349,7 +380,9 @@ function travelerChange(value) {
                 suffix=" km"
                 onChange={(v) => update('radius', v)}
               />
+              )}
 
+              {plan.tripType !== 'vacation' && (
               <NumberInput
                 label="Weekend slots this year"
                 value={plan.slotTarget}
@@ -357,7 +390,9 @@ function travelerChange(value) {
                 max="12"
                 onChange={(v) => update('slotTarget', v)}
               />
+              )}
 
+              {plan.tripType !== 'vacation' && (
               <NumberInput
                 label="Weekend budget (per trip)"
                 prefix="₹"
@@ -366,7 +401,9 @@ function travelerChange(value) {
                 step="500"
                 onChange={(v) => update('weekendBudget', v)}
               />
+              )}
 
+              {plan.tripType !== 'weekend' && (
               <NumberInput
                 label="Major-trip budget"
                 prefix="₹"
@@ -375,6 +412,17 @@ function travelerChange(value) {
                 step="1000"
                 onChange={(v) => update('majorBudget', v)}
               />
+              )}
+
+              {plan.tripType !== 'weekend' && (
+              <NumberInput
+                label="No. of major trips"
+                value={plan.majorTripCount}
+                min="1"
+                max="12"
+                onChange={(v) => update('majorTripCount', v)}
+              />
+              )}
 
               <NumberInput
                 label="Total yearly budget"
@@ -385,6 +433,7 @@ function travelerChange(value) {
                 onChange={(v) => update('yearlyBudget', v)}
               />
 
+              {plan.tripType !== 'weekend' && (
               <RangeInput
                 label="Major trip duration"
                 value={plan.durSlider}
@@ -393,6 +442,7 @@ function travelerChange(value) {
                 suffix=" days"
                 onChange={(v) => update('durSlider', v)}
               />
+              )}
             </div>
           </div>
           <div className="rounded-3xl bg-secondary p-6 sm:p-8">
@@ -407,6 +457,7 @@ function travelerChange(value) {
               />
             </div>
 
+            {plan.tripType !== 'vacation' && (
             <div className="mt-8">
               <SectionLabel>Weekend calendar</SectionLabel>
               <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -437,8 +488,11 @@ function travelerChange(value) {
                 ))}
               </div>
             </div>
+            )}
 
             <div className="bg-white/75 mt-7 rounded-2xl p-4">
+              {plan.tripType !== 'weekend' ? (
+                <>
               <SectionLabel>Major trip</SectionLabel>
 {plan.majorTrip ? (
                 <>
@@ -472,6 +526,8 @@ function travelerChange(value) {
               ) : (
                 <p className="text-primary/55 mt-2 text-sm">Choose a matching destination below.</p>
               )}
+                </>
+              ) : null}
             </div>
           </div>
         </section>
