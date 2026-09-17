@@ -4,7 +4,7 @@ import Logo from '../components/Logo'
 export default function AuthLayout({ title, subtitle, children }) {
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-muted px-[clamp(37px,3.594vw,57px)] pt-28 pb-16">
-      {/* Full-bleed lilac -> mauve vertical gradient */}
+      {/* Full-bleed light -> dark gray vertical gradient */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 overflow-hidden bg-linear-to-b from-hero-gradient-top to-hero-gradient-bottom"

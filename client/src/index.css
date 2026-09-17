@@ -3,9 +3,9 @@
 /* ---------------------------------------------------------------------------
    TripWise Design System
    Fig Grotesk is the primary typeface (self-hosted via @font-face, woff2).
-   The palette uses a dark aubergine primary (#2a182e) with soft lilac
-   secondary (#cdb3ff) accents, off-white muted surfaces, and a signature
-   lilac->mauve vertical hero gradient.
+   The palette uses a black primary (#000000) with neutral gray
+   secondary (#e5e5e5) accents, off-white muted surfaces, and a signature
+   light-to-dark gray vertical hero gradient.
 --------------------------------------------------------------------------- */
 
 @theme {
@@ -14,47 +14,47 @@
 
   /* ---- Core semantic tokens (shadcn-style) ---- */
   --color-background: #ffffff;
-  --color-foreground: #2a182e;
+  --color-foreground: #000000;
   --color-card: #ffffff;
-  --color-card-foreground: #2a182e;
+  --color-card-foreground: #000000;
   --color-popover: #ffffff;
-  --color-popover-foreground: #2a182e;
-  --color-primary: #2a182e;
-  --color-primary-foreground: #eae8ea;
-  --color-secondary: #cdb3ff;
-  --color-secondary-foreground: #2a182e;
+  --color-popover-foreground: #000000;
+  --color-primary: #000000;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #e5e5e5;
+  --color-secondary-foreground: #000000;
   --color-muted: #f7f6f3;
-  --color-muted-foreground: #7f7482;
-  --color-accent: #d4d1d5;
-  --color-accent-foreground: #352438;
-  --color-border: #d4d1d5;
-  --color-input: #d4d1d5;
-  --color-ring: #948b96;
+  --color-muted-foreground: #737373;
+  --color-accent: #e5e5e5;
+  --color-accent-foreground: #171717;
+  --color-border: #e5e5e5;
+  --color-input: #e5e5e5;
+  --color-ring: #a3a3a3;
 
-  /* ---- Brand purple scale (decorative / gradients) ---- */
-  --color-dark-purple-50: #f7f3fe;
-  --color-dark-purple-100: #efe7fd;
-  --color-dark-purple-200: #e7dbfd;
-  --color-dark-purple-300: #dfcffc;
-  --color-dark-purple-400: #cdb3ff;
-  --color-dark-purple-500: #be9ef9;
-  --color-dark-purple-600: #ae86f7;
-  --color-dark-purple-700: #926cd6;
-  --color-dark-purple-800: #7552b4;
-  --color-dark-purple-900: #593993;
-  --color-dark-purple-950: #4b2c82;
+  /* ---- Brand gray scale (decorative / gradients) ---- */
+  --color-dark-purple-50: #f5f5f5;
+  --color-dark-purple-100: #ededed;
+  --color-dark-purple-200: #e0e0e0;
+  --color-dark-purple-300: #d4d4d4;
+  --color-dark-purple-400: #bfbfbf;
+  --color-dark-purple-500: #a6a6a6;
+  --color-dark-purple-600: #8c8c8c;
+  --color-dark-purple-700: #737373;
+  --color-dark-purple-800: #595959;
+  --color-dark-purple-900: #404040;
+  --color-dark-purple-950: #262626;
 
-  /* ---- Deep purple (neutral aubergine grays) ---- */
-  --color-deep-purple-50: #eae8ea;
-  --color-deep-purple-100: #d4d1d5;
-  --color-deep-purple-200: #bfbac0;
-  --color-deep-purple-400: #948b96;
-  --color-deep-purple-900: #352438;
-  --color-deep-purple-950: #2a182e;
+  /* ---- Deep gray (neutral charcoal) ---- */
+  --color-deep-purple-50: #f5f5f5;
+  --color-deep-purple-100: #e5e5e5;
+  --color-deep-purple-200: #d4d4d4;
+  --color-deep-purple-400: #a3a3a3;
+  --color-deep-purple-900: #171717;
+  --color-deep-purple-950: #000000;
 
   /* ---- Special-purpose tokens ---- */
-  --color-hero-gradient-top: #ede0ff;
-  --color-hero-gradient-bottom: #bba0e3;
+  --color-hero-gradient-top: #f5f5f5;
+  --color-hero-gradient-bottom: #d9d9d9;
   --color-trip-card-placeholder: #e5e5e5;
   --color-card-scrim: #101010;
   --color-off-white: #f7f6f3;

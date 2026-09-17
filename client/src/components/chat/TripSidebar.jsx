@@ -16,7 +16,7 @@ function ProgressRing({ count }) {
   return (
     <div className="relative size-[52px] shrink-0">
       <svg width="52" height="52" viewBox="0 0 52 52" className="-rotate-90">
-        <circle cx="26" cy="26" r="24" fill="none" stroke="#E7DBFD" strokeWidth="4" />
+        <circle cx="26" cy="26" r="24" fill="none" stroke="#E0E0E0" strokeWidth="4" />
         <circle
           cx="26"
           cy="26"
@@ -31,8 +31,8 @@ function ProgressRing({ count }) {
         />
         <defs>
           <linearGradient id="trip-completion-ring" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#BE9EF9" />
-            <stop offset="100%" stopColor="#593993" />
+            <stop offset="0%" stopColor="#A6A6A6" />
+            <stop offset="100%" stopColor="#404040" />
           </linearGradient>
         </defs>
       </svg>
@@ -51,7 +51,7 @@ function ChecklistRow({ item, done, isLast }) {
       {!isLast && (
         <span
           aria-hidden
-          className={`bg-[#2A182E] absolute top-6 -bottom-1 left-[11px] w-px transition-opacity ${
+          className={`bg-[#000000] absolute top-6 -bottom-1 left-[11px] w-px transition-opacity ${
             done ? 'opacity-30' : 'opacity-10'
           }`}
         />
@@ -60,14 +60,14 @@ function ChecklistRow({ item, done, isLast }) {
         <div
           className={`flex size-6 items-center justify-center rounded-full transition-colors ${
             done
-              ? 'bg-[#2A182E] border border-transparent'
-              : 'border-[#2A182E]/25 bg-white/40 border border-dashed'
+              ? 'bg-[#000000] border border-transparent'
+              : 'border-[#000000]/25 bg-white/40 border border-dashed'
           }`}
         >
           {done ? (
             <Check className="size-3.5 text-background" strokeWidth={3} />
           ) : (
-            <span className="bg-[#2A182E]/25 size-1 rounded-full" />
+            <span className="bg-[#000000]/25 size-1 rounded-full" />
           )}
         </div>
       </div>
@@ -247,7 +247,7 @@ export default function TripSidebar({ captured, phase, onGenerate, onSeeTrip, ai
   const showGeneration = phase === 'generating' || phase === 'ready'
 
   return (
-    <div className="bg-[#CDB3FF] flex h-full flex-col items-center justify-center overflow-y-auto p-8">
+    <div className="bg-[#E5E5E5] flex h-full flex-col items-center justify-center overflow-y-auto p-8">
       <div className="flex w-full max-w-md flex-col gap-6">
         {showGeneration ? (
           <TripGenView phase={phase} onSeeTrip={onSeeTrip} aiPlan={aiPlan} />

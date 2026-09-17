@@ -58,7 +58,7 @@ export default function ChatInput({ onSend, disabled }) {
               onClick={submit}
               disabled={disabled || !text.trim()}
               aria-label="Send"
-              className="bg-[#AE86F7] text-foreground flex size-10 items-center justify-center rounded-3xl transition-all hover:brightness-90 disabled:cursor-not-allowed disabled:bg-[#AE86F750]"
+              className="bg-[#8C8C8C] text-white flex size-10 items-center justify-center rounded-3xl transition-all hover:brightness-90 disabled:cursor-not-allowed disabled:bg-[#8C8C8C50]"
             >
               <ArrowUp className="size-5" strokeWidth={2.5} />
             </button>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown, LogOut, Menu, User, X } from 'lucide-react'
 import Logo from './Logo'
+import PlanGoalModal from './PlanGoalModal'
 import { useAuth } from '../context/AuthContext'
 
 const NAV_LINKS = [
@@ -55,6 +56,7 @@ export default function Header() {
   const navigate = useNavigate()
   const isChat = pathname.startsWith('/chat')
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [planModalOpen, setPlanModalOpen] = useState(false)
 
   function handleLogout() {
     logout()
@@ -126,12 +128,13 @@ export default function Header() {
           <div className="flex items-center gap-4">
             {user ? (
               <>
-                <Link
-                  to="/chat"
+                <button
+                  type="button"
+                  onClick={() => setPlanModalOpen(true)}
                   className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-full px-6 text-lg leading-none font-medium shadow-xs transition-colors"
                 >
                   Start planning
-                </Link>
+                </button>
                 <Avatar onLogout={handleLogout} />
               </>
             ) : (
@@ -142,12 +145,13 @@ export default function Header() {
                 >
                   Sign in
                 </Link>
-                <Link
-                  to="/signup"
+                <button
+                  type="button"
+                  onClick={() => setPlanModalOpen(true)}
                   className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-full px-6 text-lg leading-none font-medium shadow-xs transition-colors"
                 >
                   Start planning
-                </Link>
+                </button>
               </>
             )}
           </div>
@@ -163,22 +167,24 @@ export default function Header() {
           <div className="flex items-center gap-3">
             {user ? (
               <>
-                <Link
-                  to="/chat"
+                <button
+                  type="button"
+                  onClick={() => setPlanModalOpen(true)}
                   className="bg-primary text-primary-foreground inline-flex h-10 items-center justify-center rounded-full px-5 text-[13px] leading-none font-semibold transition-colors hover:bg-primary/90"
                 >
                   Start planning
-                </Link>
+                </button>
                 <Avatar showChevron={false} onLogout={handleLogout} />
               </>
             ) : (
               <>
-                <Link
-                  to="/signup"
+                <button
+                  type="button"
+                  onClick={() => setPlanModalOpen(true)}
                   className="bg-primary text-primary-foreground inline-flex h-10 items-center justify-center rounded-full px-5 text-[13px] leading-none font-semibold transition-colors hover:bg-primary/90"
                 >
                   Start planning
-                </Link>
+                </button>
                 <button
                   type="button"
                   aria-label="Menu"
@@ -211,6 +217,8 @@ export default function Header() {
           </div>
         )}
       </div>
+
+      <PlanGoalModal open={planModalOpen} onClose={() => setPlanModalOpen(false)} />
     </nav>
   )
 }

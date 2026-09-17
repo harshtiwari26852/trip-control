@@ -14,6 +14,8 @@ apiRouter.put('/api/plan', planController.savePlan);
 
 apiRouter.get('/api/ai/avail', aiController.getAvail);
 apiRouter.post('/api/ai/generate-plan', aiController.generatePlan);
+apiRouter.post('/api/ai/generate-itinerary', aiController.generateItinerary);
+apiRouter.post('/api/ai/generate-weekend-calendar', aiController.generateWeekendCalendar);
 apiRouter.get('/api/ai/weather/:name', aiController.getWeather);
 apiRouter.get('/api/ai/pricing/:name', aiController.getPricing);
 

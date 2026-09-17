@@ -1,14 +1,30 @@
 import { useEffect, useMemo, useState } from 'react'
-import { MapPin, Plus, Sparkles } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
+import { Hotel, MapPin, Plus, Route, Sparkles, Wallet } from 'lucide-react'
 import { apiFetch } from '../lib/api'
 
 const initialPlan = {
   home: 'Mumbai', tripType: 'weekend', mode: 'weekend', traveler: 'solo', travelers: 1,
-  kidsAge: 7, radius: 300, slotTarget: 12, weekendBudget: 8000, majorBudget: 45000,
-  majorTripCount: 1, yearlyBudget: 96000, durSlider: 7, weekendSlots: Array(12).fill(null), majorTrip: null,
+  kidsAge: 7, radius: 300, slotTarget: 20, weekendBudget: 8000, majorBudget: 45000,
+  majorTripCount: 1, yearlyBudget: 160000, durSlider: 7, weekendSlots: Array(12).fill(null),
+  majorTrip: null,
+  destination: '', startDate: '', endDate: '', duration: 4, totalBudget: 50000,
+  travelMode: 'flight', pace: 'balanced', weekendCalendar: [],
 }
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const money = (value) => `₹${Math.round(value || 0).toLocaleString('en-IN')}`
+
+const TRAVEL_MODES = [
+  { value: 'flight', label: 'Flight' },
+  { value: 'train', label: 'Train' },
+  { value: 'drive', label: 'Drive' },
+]
+
+const PACES = [
+  { value: 'relaxed', label: 'Relaxed' },
+  { value: 'balanced', label: 'Balanced' },
+  { value: 'action', label: 'Action-packed' },
+]
 
 function distance(a, b) {
   const rad = (n) => (n * Math.PI) / 180
@@ -98,12 +114,187 @@ function SectionLabel({ children }) {
   )
 }
 
+function daysBetween(a, b) {
+  if (!a || !b) return ''
+  const ms = new Date(`${b}T00:00:00`) - new Date(`${a}T00:00:00`)
+  if (Number.isNaN(ms) || ms < 0) return ''
+  return Math.round(ms / 86400000) + 1
+}
+
+function BudgetRow({ label, value }) {
+  return (
+    <div className="bg-muted rounded-xl px-3 py-2.5">
+      <p className="text-muted-foreground text-xs font-medium">{label}</p>
+      <p className="text-primary mt-0.5 text-sm font-bold">{money(value)}</p>
+    </div>
+  )
+}
+
+function ItineraryResult({ itinerary, destination, budget }) {
+  if (!itinerary) return null
+  const b = itinerary.budgetSummary
+  const budgetPct = b && budget ? Math.min(100, (b.total / budget) * 100) : 0
+  const over = Boolean(b && budget && b.total > budget)
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <SectionLabel>AI itinerary</SectionLabel>
+          <h2 className="text-primary mt-1 text-3xl leading-tight font-bold">
+            {destination} in {itinerary.itinerary.length || '…'} days
+          </h2>
+        </div>
+        {itinerary.source && (
+          <span className="bg-secondary text-muted-foreground rounded-full px-3 py-1 text-xs font-medium">
+            Generated via {itinerary.source}
+          </span>
+        )}
+      </div>
+
+      {itinerary.summary && (
+        <p className="text-primary/80 max-w-3xl text-base leading-relaxed">{itinerary.summary}</p>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {itinerary.transportation && (
+          <div className="rounded-2xl border border-border bg-background p-5">
+            <div className="flex items-center gap-2">
+              <span className="bg-secondary flex size-9 items-center justify-center rounded-full">
+                <Route className="text-primary size-4" />
+              </span>
+              <h3 className="text-primary text-lg font-bold">Getting there</h3>
+            </div>
+            {itinerary.transportation.method && (
+              <p className="text-primary mt-3 font-semibold capitalize">{itinerary.transportation.method}</p>
+            )}
+            {itinerary.transportation.details && (
+              <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                {itinerary.transportation.details}
+              </p>
+            )}
+            <div className="text-primary mt-3 flex flex-wrap gap-2 text-xs font-medium">
+              {itinerary.transportation.duration && (
+                <span className="bg-dark-purple-200 rounded-full px-2.5 py-1">
+                  {itinerary.transportation.duration}
+                </span>
+              )}
+              <span className="bg-dark-purple-200 rounded-full px-2.5 py-1">
+                {money(itinerary.transportation.estimatedCost)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {itinerary.accommodation && (
+          <div className="rounded-2xl border border-border bg-background p-5">
+            <div className="flex items-center gap-2">
+              <span className="bg-secondary flex size-9 items-center justify-center rounded-full">
+                <Hotel className="text-primary size-4" />
+              </span>
+              <h3 className="text-primary text-lg font-bold">Where to stay</h3>
+            </div>
+            {itinerary.accommodation.suggestion && (
+              <p className="text-primary mt-3 font-semibold">{itinerary.accommodation.suggestion}</p>
+            )}
+            <div className="text-primary mt-3 flex flex-wrap gap-2 text-xs font-medium">
+              <span className="bg-dark-purple-200 rounded-full px-2.5 py-1">
+                {money(itinerary.accommodation.estimatedTotalCost)}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {b && (
+        <div className="rounded-2xl border border-border bg-background p-5">
+          <div className="flex items-center gap-2">
+            <span className="bg-secondary flex size-9 items-center justify-center rounded-full">
+              <Wallet className="text-primary size-4" />
+            </span>
+            <h3 className="text-primary text-lg font-bold">Budget breakdown</h3>
+            <span className="text-muted-foreground ml-auto text-sm font-medium">
+              {money(b.total)}
+              {budget ? ` of ${money(budget)}` : ''}
+            </span>
+          </div>
+          <div className="bg-white/60 mt-4 h-3 overflow-hidden rounded-full">
+            <div
+              className={`h-full rounded-full ${over ? 'bg-red-500' : 'bg-primary'}`}
+              style={{ width: `${budgetPct}%` }}
+            />
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <BudgetRow label="Transport" value={b.transport} />
+            <BudgetRow label="Stay" value={b.accommodation} />
+            <BudgetRow label="Food" value={b.food} />
+            <BudgetRow label="Activities" value={b.activities} />
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-4">
+        {itinerary.itinerary.map((day) => (
+          <div key={day.day} className="rounded-2xl border border-border bg-background p-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-bold">
+                {day.day}
+              </span>
+              {day.theme && (
+                <span className="text-primary text-base font-bold">{day.theme}</span>
+              )}
+            </div>
+            <ol className="mt-4 flex flex-col gap-4">
+              {day.activities.map((activity, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className="bg-secondary text-primary flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <p className="text-primary text-sm font-semibold">{activity.title}</p>
+                      {activity.time && (
+                        <span className="text-muted-foreground text-xs">{activity.time}</span>
+                      )}
+                    </div>
+                    {activity.description && (
+                      <p className="text-muted-foreground mt-0.5 text-sm leading-relaxed">
+                        {activity.description}
+                      </p>
+                    )}
+                    <p className="text-primary mt-1 text-xs font-semibold">
+                      {money(activity.estimatedCost)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            {!day.activities.length && (
+              <p className="text-muted-foreground mt-3 text-sm">A free day to explore at your own pace.</p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <p className="text-muted-foreground text-xs leading-4">
+        * Estimated prices based on historical data. Actual prices may vary.
+      </p>
+    </div>
+  )
+}
+
 export default function Planner() {
-  const [plan, setPlan] = useState(initialPlan)
+  const { state } = useLocation()
+  const [plan, setPlan] = useState(() => ({
+    ...initialPlan,
+    ...(state?.goal === 'destination' ? { tripType: 'destination', mode: 'vacation' } : {}),
+  }))
   const [cities, setCities] = useState({})
   const [destinations, setDestinations] = useState([])
   const [status, setStatus] = useState('Loading your planning tools…')
   const [aiState, setAiState] = useState({ busy: false, summary: '', source: '', error: '' })
+  const [itineraryState, setItineraryState] = useState({ busy: false, data: null, error: '' })
+  const [wcState, setWcState] = useState({ busy: false, error: '' })
 
   useEffect(() => {
     Promise.all([
@@ -146,19 +337,32 @@ export default function Planner() {
       .sort((a, b) => a.cost - b.cost)
   }, [cities, destinations, plan])
 
-  const weekendSpend = plan.weekendSlots
-    .slice(0, plan.slotTarget)
-    .filter(Boolean)
-    .reduce((sum, slot) => sum + slot.cost, 0)
+const calendarSpend = (plan.weekendCalendar || []).reduce(
+    (sum, month) => sum + (month.trips || []).reduce((s, t) => s + (Number(t.estimatedBudget) || 0), 0),
+    0,
+  )
+  const weekendSpend = plan.weekendCalendar?.length
+    ? calendarSpend
+    : plan.weekendSlots
+        .slice(0, plan.slotTarget)
+        .filter(Boolean)
+        .reduce((sum, slot) => sum + slot.cost, 0)
   const majorSpend = plan.majorTrip?.cost || 0
   const totalSpend = weekendSpend + majorSpend
 
   function update(key, value) {
     setPlan((p) => {
-      const next = { ...p, [key]: value }
+      let next = { ...p, [key]: value }
       if (key === 'tripType') {
         if (value === 'weekend') next.mode = 'weekend'
         else if (value === 'vacation') next.mode = 'vacation'
+        else if (value === 'destination') next.mode = 'vacation'
+      }
+      if (key === 'startDate' || key === 'endDate') {
+        next.duration = daysBetween(
+          key === 'startDate' ? value : next.startDate,
+          key === 'endDate' ? value : next.endDate,
+        ) || p.duration
       }
       if (next.tripType === 'weekend') {
         if (key === 'weekendBudget' || key === 'slotTarget') {
@@ -237,6 +441,13 @@ function travelerChange(value) {
       majorBudget: plan.majorBudget,
       yearlyBudget: plan.yearlyBudget,
       durSlider: plan.durSlider,
+      destination: plan.destination,
+      startDate: plan.startDate,
+      endDate: plan.endDate,
+      duration: plan.duration,
+      totalBudget: plan.totalBudget,
+      travelMode: plan.travelMode,
+      pace: plan.pace,
     }
     try {
       const res = await apiFetch('/api/ai/generate-plan', { method: 'POST', body: profile })
@@ -270,8 +481,69 @@ function travelerChange(value) {
         source: aiPlan.source || '',
         error: '',
       })
-    } catch (err) {
+} catch (err) {
       setAiState({ busy: false, summary: '', source: '', error: err.message })
+    }
+  }
+
+  const isDestination = plan.tripType === 'destination'
+
+  async function generateItinerary() {
+    if (itineraryState.busy) return
+    if (!plan.destination.trim()) {
+      setItineraryState((s) => ({ ...s, error: 'Type a destination city first.' }))
+      return
+    }
+    setItineraryState({ busy: true, data: null, error: '' })
+    const travelerType =
+      plan.traveler === 'solo' ? 'Solo' : plan.traveler === 'family' ? 'Family with kids' : 'Parents & elders'
+    try {
+      const res = await apiFetch('/api/ai/generate-itinerary', {
+        method: 'POST',
+        body: {
+          home: plan.home,
+          destination: plan.destination,
+          duration: plan.duration,
+          totalBudget: plan.totalBudget,
+          travelers: plan.travelers,
+          travelerType,
+          travelMode: plan.travelMode,
+          pace: plan.pace,
+          startDate: plan.startDate,
+          endDate: plan.endDate,
+        },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to generate itinerary')
+      setItineraryState({ busy: false, data: data.itinerary || null, error: '' })
+    } catch (err) {
+      setItineraryState({ busy: false, data: null, error: err.message })
+    }
+  }
+
+  async function generateWeekendCalendar() {
+    if (wcState.busy) return
+    setWcState({ busy: true, error: '' })
+    const travelerType =
+      plan.traveler === 'solo' ? 'Solo' : plan.traveler === 'family' ? 'Family with kids' : 'Parents & elders'
+    try {
+      const res = await apiFetch('/api/ai/generate-weekend-calendar', {
+        method: 'POST',
+        body: {
+          home: plan.home,
+          slotTarget: plan.slotTarget,
+          radius: plan.radius,
+          weekendBudget: plan.weekendBudget,
+          travelers: plan.travelers,
+          travelerType,
+        },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to generate weekend calendar')
+      setPlan((p) => ({ ...p, weekendCalendar: data.weekendCalendar?.calendar || [] }))
+      setWcState({ busy: false, error: '' })
+    } catch (err) {
+      setWcState({ busy: false, error: err.message })
     }
   }
 
@@ -291,13 +563,19 @@ function travelerChange(value) {
             </svg>
           </div>
 
-          <div className="relative px-6 py-10 text-primary sm:px-12 sm:py-14">
-            <p className="text-primary/70 text-xs font-semibold tracking-widest uppercase">TripWise yearly planner</p>
+<div className="relative px-6 py-10 text-primary sm:px-12 sm:py-14">
+            <p className="text-primary/70 text-xs font-semibold tracking-widest uppercase">
+              {isDestination ? 'TripWise destination planner' : 'TripWise yearly planner'}
+            </p>
             <h1 className="mt-3 max-w-2xl text-3xl leading-tight font-bold text-balance sm:text-5xl">
-              A beautiful plan, built around your real limits.
+              {isDestination
+                ? 'A single destination, planned perfectly.'
+                : 'A beautiful plan, built around your real limits.'}
             </h1>
             <p className="text-primary/75 mt-4 max-w-xl text-base sm:text-lg">
-              Set your budget, radius and travel style. Every suggestion honours those constraints.
+              {isDestination
+                ? 'Tell us where you are headed and how you like to travel. We will handle the rest.'
+                : 'Set your budget, radius and travel style. Every suggestion honours those constraints.'}
             </p>
           </div>
         </section>
@@ -318,20 +596,29 @@ function travelerChange(value) {
               </button>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2">
+<div className="grid gap-5 sm:grid-cols-2">
               <Field label="Home city">
-                <select value={plan.home} onChange={(e) => update('home', e.target.value)} className={selectClass}>
+                <input
+                  type="text"
+                  list="home-city-list"
+                  value={plan.home}
+                  onChange={(e) => update('home', e.target.value)}
+                  className={inputClass}
+                  placeholder="e.g. Mumbai"
+                />
+                <datalist id="home-city-list">
                   {Object.keys(cities).map((city) => (
-                    <option key={city}>{city}</option>
+                    <option key={city} value={city} />
                   ))}
-                </select>
+                </datalist>
               </Field>
 
               <Field label="Trip type">
                 <select value={plan.tripType} onChange={(e) => update('tripType', e.target.value)} className={selectClass}>
+                  <option value="destination">Specific destination</option>
+                  <option value="weekend">Weekend getaway</option>
+                  <option value="vacation">Extended vacation</option>
                   <option value="both">Both</option>
-                  <option value="weekend">Long weekend</option>
-                  <option value="vacation">Long vacation</option>
                 </select>
               </Field>
 
@@ -370,7 +657,98 @@ function travelerChange(value) {
                 />
               )}
 
-              {plan.tripType !== 'vacation' && (
+              {isDestination && (
+                <>
+                  <Field label="Destination city">
+                    <input
+                      type="text"
+                      list="destination-city-list"
+                      value={plan.destination}
+                      onChange={(e) => update('destination', e.target.value)}
+                      className={inputClass}
+                      placeholder="e.g. Pune"
+                    />
+                    <datalist id="destination-city-list">
+                      {destinations.map((d) => (
+                        <option key={d.name} value={d.name} />
+                      ))}
+                    </datalist>
+                  </Field>
+
+                  <Field label="Start date">
+                    <input
+                      type="date"
+                      value={plan.startDate}
+                      onChange={(e) => update('startDate', e.target.value)}
+                      className={inputClass}
+                    />
+                  </Field>
+
+                  <Field label="End date">
+                    <input
+                      type="date"
+                      value={plan.endDate}
+                      onChange={(e) => update('endDate', e.target.value)}
+                      className={inputClass}
+                    />
+                  </Field>
+
+                  {daysBetween(plan.startDate, plan.endDate) ? (
+                    <Field label="Duration">
+                      <div className="border-input bg-background text-foreground flex h-12 w-full items-center rounded-lg border border-border px-4 text-base">
+                        {daysBetween(plan.startDate, plan.endDate)} days
+                      </div>
+                    </Field>
+                  ) : (
+                    <NumberInput
+                      label="Duration (days)"
+                      value={plan.duration}
+                      min="1"
+                      max="30"
+                      onChange={(v) => update('duration', v)}
+                    />
+                  )}
+
+                  <NumberInput
+                    label="Total trip budget"
+                    prefix="₹"
+                    value={plan.totalBudget}
+                    min="0"
+                    step="1000"
+                    onChange={(v) => update('totalBudget', v)}
+                  />
+
+                  <Field label="Travel mode">
+                    <div className="mt-2 flex rounded-full bg-muted p-1">
+                      {TRAVEL_MODES.map((m) => (
+                        <Toggle
+                          key={m.value}
+                          active={plan.travelMode === m.value}
+                          onClick={() => update('travelMode', m.value)}
+                        >
+                          {m.label}
+                        </Toggle>
+                      ))}
+                    </div>
+                  </Field>
+
+                  <Field label="Pace / Vibe">
+                    <div className="mt-2 flex rounded-full bg-muted p-1">
+                      {PACES.map((p) => (
+                        <Toggle
+                          key={p.value}
+                          active={plan.pace === p.value}
+                          onClick={() => update('pace', p.value)}
+                        >
+                          {p.label}
+                        </Toggle>
+                      ))}
+                    </div>
+                  </Field>
+                </>
+              )}
+
+              {!isDestination && plan.tripType !== 'vacation' && (
               <RangeInput
                 label="Weekend radius"
                 value={plan.radius}
@@ -382,17 +760,17 @@ function travelerChange(value) {
               />
               )}
 
-              {plan.tripType !== 'vacation' && (
+              {!isDestination && plan.tripType !== 'vacation' && (
               <NumberInput
-                label="Weekend slots this year"
+                label="Weekend trips per year"
                 value={plan.slotTarget}
-                min="1"
-                max="12"
+                min="12"
+                max="24"
                 onChange={(v) => update('slotTarget', v)}
               />
               )}
 
-              {plan.tripType !== 'vacation' && (
+              {!isDestination && plan.tripType !== 'vacation' && (
               <NumberInput
                 label="Weekend budget (per trip)"
                 prefix="₹"
@@ -403,7 +781,7 @@ function travelerChange(value) {
               />
               )}
 
-              {plan.tripType !== 'weekend' && (
+              {!isDestination && plan.tripType !== 'weekend' && (
               <NumberInput
                 label="Major-trip budget"
                 prefix="₹"
@@ -414,7 +792,7 @@ function travelerChange(value) {
               />
               )}
 
-              {plan.tripType !== 'weekend' && (
+              {!isDestination && plan.tripType !== 'weekend' && (
               <NumberInput
                 label="No. of major trips"
                 value={plan.majorTripCount}
@@ -424,6 +802,7 @@ function travelerChange(value) {
               />
               )}
 
+              {!isDestination && (
               <NumberInput
                 label="Total yearly budget"
                 prefix="₹"
@@ -432,8 +811,9 @@ function travelerChange(value) {
                 step="5000"
                 onChange={(v) => update('yearlyBudget', v)}
               />
+              )}
 
-              {plan.tripType !== 'weekend' && (
+              {!isDestination && plan.tripType !== 'weekend' && (
               <RangeInput
                 label="Major trip duration"
                 value={plan.durSlider}
@@ -445,11 +825,87 @@ function travelerChange(value) {
               )}
             </div>
           </div>
-          <div className="rounded-3xl bg-secondary p-6 sm:p-8">
-            <SectionLabel>Budget tracker</SectionLabel>
-            <h2 className="text-primary mt-1 text-2xl font-bold">
-              {money(totalSpend)} <span className="text-primary/60 text-base font-normal">of {money(plan.yearlyBudget)}</span>
-            </h2>
+          {isDestination ? (
+            <div className="rounded-3xl bg-secondary p-6 sm:p-8">
+              <SectionLabel>Your trip</SectionLabel>
+              <h2 className="text-primary mt-1 text-2xl font-bold">
+                {plan.destination || 'Specific destination'}
+              </h2>
+              <div className="bg-white/75 mt-4 rounded-2xl p-4">
+                <div className="flex flex-col gap-3 text-sm">
+                  <p className="text-primary flex justify-between gap-3">
+                    <span className="text-muted-foreground">From</span>
+                    <span className="font-medium">{plan.home || '—'}</span>
+                  </p>
+                  {plan.startDate && plan.endDate && (
+                    <p className="text-primary flex justify-between gap-3">
+                      <span className="text-muted-foreground">When</span>
+                      <span className="font-medium">
+                        {plan.startDate} → {plan.endDate}
+                      </span>
+                    </p>
+                  )}
+                  <p className="text-primary flex justify-between gap-3">
+                    <span className="text-muted-foreground">Duration</span>
+                    <span className="font-medium">
+                      {daysBetween(plan.startDate, plan.endDate) || plan.duration} days
+                    </span>
+                  </p>
+                  <p className="text-primary flex justify-between gap-3">
+                    <span className="text-muted-foreground">Travel mode</span>
+                    <span className="font-medium capitalize">{plan.travelMode}</span>
+                  </p>
+                  <p className="text-primary flex justify-between gap-3">
+                    <span className="text-muted-foreground">Pace</span>
+                    <span className="font-medium capitalize">{plan.pace}</span>
+                  </p>
+                  <p className="text-primary flex justify-between gap-3">
+                    <span className="text-muted-foreground">Travellers</span>
+                    <span className="font-medium">
+                      {plan.travelers} {plan.traveler === 'family' ? '(family)' : plan.traveler === 'elders' ? '(elders)' : ''}
+                    </span>
+                  </p>
+                  <p className="text-primary flex justify-between gap-3 border-t border-border pt-3">
+                    <span className="text-muted-foreground">Total budget</span>
+                    <span className="font-semibold">{money(plan.totalBudget)}</span>
+                  </p>
+                </div>
+<div className="mt-6 flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={generateItinerary}
+                  disabled={itineraryState.busy}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full px-6 text-sm leading-none font-semibold shadow-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Sparkles className="size-4" />
+                  {itineraryState.busy ? 'Planning your trip…' : 'Generate Itinerary'}
+                </button>
+                <button
+                  type="button"
+                  onClick={save}
+                  className="border-border bg-white hover:bg-accent text-primary inline-flex h-10 w-full items-center justify-center rounded-full border px-6 text-sm leading-none font-semibold transition-colors"
+                >
+                  Save this trip
+                </button>
+              </div>
+              {itineraryState.busy && (
+                <p className="text-muted-foreground mt-3 text-xs leading-4">
+                  Building a personalized itinerary with transport, stays, activities and a budget breakdown…
+                </p>
+              )}
+              {itineraryState.error && (
+                <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-[#5c1a14]">
+                  {itineraryState.error}
+                </p>
+              )}
+            </div>
+            </div>
+          ) : (
+            <div className="rounded-3xl bg-secondary p-6 sm:p-8">
+              <SectionLabel>Budget tracker</SectionLabel>
+              <h2 className="text-primary mt-1 text-2xl font-bold">
+                {money(totalSpend)} <span className="text-primary/60 text-base font-normal">of {money(plan.yearlyBudget)}</span>
+              </h2>
             <div className="bg-white/60 mt-4 h-3 overflow-hidden rounded-full">
               <div
                 className={`h-full rounded-full ${totalSpend > plan.yearlyBudget ? 'bg-red-500' : 'bg-primary'}`}
@@ -458,34 +914,80 @@ function travelerChange(value) {
             </div>
 
             {plan.tripType !== 'vacation' && (
-            <div className="mt-8">
-              <SectionLabel>Weekend calendar</SectionLabel>
+<div className="mt-8">
+              <div className="flex items-center justify-between gap-2">
+                <SectionLabel>Weekend calendar</SectionLabel>
+                <button
+                  type="button"
+                  onClick={generateWeekendCalendar}
+                  disabled={wcState.busy}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full px-4 text-xs leading-none font-semibold shadow-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Sparkles className="size-3.5" />
+                  {wcState.busy ? 'Planning…' : 'Plan weekends with AI'}
+                </button>
+              </div>
+              {wcState.busy && (
+                <p className="text-muted-foreground mt-2 text-xs leading-4">
+                  Fitting {plan.slotTarget} trips across 12 months with seasonality, radius and budget in mind…
+                </p>
+              )}
+              {wcState.error && (
+                <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-[#5c1a14]">
+                  {wcState.error}
+                </p>
+              )}
               <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {plan.weekendSlots.slice(0, plan.slotTarget).map((slot, index) => (
-<div key={index} className="bg-white/75 text-primary min-h-28 rounded-2xl p-3">
-                    <p className="text-primary/55 text-xs">{slot?.month || months[(new Date().getMonth() + index) % 12]}</p>
-                    {slot ? (
-                      <>
-                        <p className="mt-2 text-sm font-bold">{slot.name}</p>
-                        <p className="text-xs">
-                          {slot.days} days · {money(slot.cost)}
-                        </p>
-                        {slot.reason && (
-                          <p className="text-primary/55 mt-1 text-[10px] leading-3">{slot.reason}</p>
-                        )}
-                        <button
-                          aria-label={`Remove ${slot.name}`}
-                          onClick={() => removeSlot(index)}
-                          className="mt-2 text-xs font-semibold underline"
-                        >
-                          Remove
-                        </button>
-                      </>
-                    ) : (
-                      <p className="text-primary/50 mt-5 text-sm">Open slot</p>
-                    )}
-                  </div>
-                ))}
+                {(plan.weekendCalendar?.length ? plan.weekendCalendar : []).length > 0 &&
+                  plan.weekendCalendar.map((month, index) => (
+                    <div key={index} className="bg-white/75 text-primary min-h-28 rounded-2xl p-3">
+                      <p className="text-primary/55 text-xs">
+                        {month.month || months[index]}
+                        {month.trips?.length > 1 ? ' · 2 trips' : ''}
+                      </p>
+                      {month.trips?.length ? (
+                        month.trips.map((t, ti) => (
+                          <div key={ti} className={ti > 0 ? 'border-border mt-2 border-t pt-2' : ''}>
+                            <p className="text-primary mt-1 text-sm leading-tight font-bold">{t.destination}</p>
+                            <p className="text-primary/70 text-xs">
+                              {t.duration || '3 Days'} · {money(t.estimatedBudget)}
+                              {t.distanceFromHome ? ` · ${Math.round(t.distanceFromHome)} km` : ''}
+                            </p>
+                            {t.vibe && <p className="text-primary/55 mt-0.5 text-[10px] leading-3">{t.vibe}</p>}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-primary/50 mt-5 text-sm">Open slot</p>
+                      )}
+                    </div>
+                  ))}
+
+                {!plan.weekendCalendar?.length &&
+                  plan.weekendSlots.slice(0, 12).map((slot, index) => (
+                    <div key={index} className="bg-white/75 text-primary min-h-28 rounded-2xl p-3">
+                      <p className="text-primary/55 text-xs">{slot?.month || months[(new Date().getMonth() + index) % 12]}</p>
+                      {slot ? (
+                        <>
+                          <p className="mt-2 text-sm font-bold">{slot.name}</p>
+                          <p className="text-xs">
+                            {slot.days} days · {money(slot.cost)}
+                          </p>
+                          {slot.reason && (
+                            <p className="text-primary/55 mt-1 text-[10px] leading-3">{slot.reason}</p>
+                          )}
+                          <button
+                            aria-label={`Remove ${slot.name}`}
+                            onClick={() => removeSlot(index)}
+                            className="mt-2 text-xs font-semibold underline"
+                          >
+                            Remove
+                          </button>
+                        </>
+                      ) : (
+                        <p className="text-primary/50 mt-5 text-sm">Open slot</p>
+                      )}
+                    </div>
+                  ))}
               </div>
             </div>
             )}
@@ -526,13 +1028,15 @@ function travelerChange(value) {
               ) : (
                 <p className="text-primary/55 mt-2 text-sm">Choose a matching destination below.</p>
               )}
-                </>
+</>
               ) : null}
             </div>
           </div>
+          )}
         </section>
 
-<section className="mt-8 rounded-3xl bg-background p-6 shadow-sm sm:p-8">
+{!isDestination && (
+          <section className="mt-8 rounded-3xl bg-background p-6 shadow-sm sm:p-8">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <SectionLabel>Matching engine</SectionLabel>
@@ -598,12 +1102,23 @@ function travelerChange(value) {
             ))}
           </div>
 
-          {!candidates.length && (
+{!candidates.length && (
             <p className="bg-muted text-muted-foreground mt-6 rounded-2xl p-5">
               No destinations meet these constraints yet. Try widening your radius or increasing the relevant trip budget.
             </p>
           )}
         </section>
+        )}
+
+        {isDestination && itineraryState.data && (
+          <section className="mt-8 rounded-3xl bg-off-white p-6 sm:p-8">
+            <ItineraryResult
+              itinerary={itineraryState.data}
+              destination={plan.destination}
+              budget={plan.totalBudget}
+            />
+          </section>
+        )}
       </div>
     </main>
   )

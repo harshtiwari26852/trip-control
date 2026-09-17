@@ -52,6 +52,15 @@ const REPLIES = {
     "That's exactly what I needed. Your checklist is full — hit 'Generate my trip' and I'll build your itinerary now.",
 }
 
+const GREETINGS = {
+  destination:
+    "Hi! I'm TripWise, your AI trip planner. Let's explore that destination perfectly. Where are you dreaming of going?",
+  weekend:
+    "Hi! I'm TripWise, your AI trip planner. A weekend getaway sounds great — where are you dreaming of heading?",
+  vacation:
+    "Hi! I'm TripWise, your AI trip planner. A big annual trip, nice! Where are you dreaming of going?",
+}
+
 let counter = 1
 function nextId() {
   return counter++
@@ -61,12 +70,15 @@ export default function Chat() {
   const navigate = useNavigate()
   const { state } = useLocation()
   const seedPrompt = state?.prompt
+  const goal = state?.goal
 
   const [messages, setMessages] = useState(() => [
     {
       id: nextId(),
       role: 'assistant',
-      text: "Hi! I'm TripWise, your AI trip planner. Where are you dreaming of going?",
+      text:
+        GREETINGS[goal] ||
+        "Hi! I'm TripWise, your AI trip planner. Where are you dreaming of going?",
     },
   ])
   const [captured, setCaptured] = useState({})
@@ -112,7 +124,9 @@ export default function Chat() {
 
     const purposeText = (captured.purpose || '').toLowerCase()
     let tripType = 'both'
-    if (purposeText.includes('relax') || purposeText.includes('beach')) tripType = 'weekend'
+    if (goal === 'weekend') tripType = 'weekend'
+    else if (goal === 'vacation') tripType = 'vacation'
+    else if (purposeText.includes('relax') || purposeText.includes('beach')) tripType = 'weekend'
     else if (purposeText.includes('adventure') || purposeText.includes('trek')) tripType = 'vacation'
 
     const travelersText = (captured.who || '').toLowerCase()

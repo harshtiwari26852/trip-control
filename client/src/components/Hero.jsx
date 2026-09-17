@@ -4,7 +4,7 @@ export default function Hero() {
   return (
     <div className="bg-muted">
       <div className="relative overflow-hidden">
-        {/* Full-bleed lilac -> mauve vertical gradient */}
+        {/* Full-bleed light -> dark gray vertical gradient */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 overflow-hidden bg-linear-to-b from-hero-gradient-top to-hero-gradient-bottom"
