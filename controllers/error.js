@@ -5,5 +5,8 @@ exports.pageNotFound = (req, res, next) => {
 exports.handleError = (err, req, res, next) => {
   console.error(err);
   if (res.headersSent) return next(err);
+  if (req.path.startsWith("/api")) {
+    return res.status(500).json({ error: "Something went wrong on the server." });
+  }
   res.status(500).render("500", { isLoggedIn: req.isLoggedIn });
 };

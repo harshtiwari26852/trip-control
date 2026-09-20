@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Header from './components/Header'
 import Hero from './components/Hero'
@@ -15,6 +15,7 @@ function ProtectedRoute({ children }) {
 }
 
 function App() {
+  const location = useLocation()
   return (
     <AuthProvider>
       <Header />
@@ -33,7 +34,7 @@ function App() {
           element={
             <ProtectedRoute>
               <main className="pt-14">
-                <Planner />
+                <Planner key={location.key} />
               </main>
             </ProtectedRoute>
           }

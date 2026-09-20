@@ -502,7 +502,7 @@ ${ITINERARY_JSON_SCHEMA}`;
 
 // AI output is external input. Normalize it once on the server so a model
 // returning a string instead of an array cannot crash either React view.
-function normalizeItinerary(raw) {
+function normalizeItinerary(raw, budgetCap = 0) {
   if (!raw || typeof raw !== 'object') {
     const err = new Error('AI returned an invalid itinerary. Please try again.');
     err.code = 'AI_PROVIDER_FAILED';
@@ -570,6 +570,17 @@ function normalizeItinerary(raw) {
         }
       : null;
 
+  if (budgetSummary && budgetCap > 0 && budgetSummary.total > budgetCap) {
+    const scale = budgetCap / budgetSummary.total;
+    budgetSummary = {
+      transport: Math.round(budgetSummary.transport * scale),
+      accommodation: Math.round(budgetSummary.accommodation * scale),
+      food: Math.round(budgetSummary.food * scale),
+      activities: Math.round(budgetSummary.activities * scale),
+      total: Math.round(budgetCap)
+    };
+  }
+
   if (!transportation && !accommodation && !itinerary.length && !budgetSummary) {
     const err = new Error('AI returned an incomplete itinerary. Please try again.');
     err.code = 'AI_PROVIDER_FAILED';
@@ -586,7 +597,7 @@ function normalizeItinerary(raw) {
   };
 }
 
-function parseJsonItinerary(text, provider) {
+function parseJsonItinerary(text, provider, budgetCap = 0) {
   try {
     const raw = String(text);
     const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
@@ -594,7 +605,7 @@ function parseJsonItinerary(text, provider) {
     const start = unfenced.indexOf('{');
     const end = unfenced.lastIndexOf('}');
     const candidate = start >= 0 && end > start ? unfenced.slice(start, end + 1) : unfenced;
-    return normalizeItinerary(JSON.parse(candidate));
+    return normalizeItinerary(JSON.parse(candidate), budgetCap);
   } catch (cause) {
     if (cause && cause.code === 'AI_PROVIDER_FAILED') throw cause;
     const err = new Error(`${provider} returned an invalid itinerary. Please try again.`);
@@ -651,7 +662,7 @@ async function callGeminiItinerary(profile) {
   let parseError;
   for (const text of textParts) {
     try {
-      parsed = parseJsonItinerary(text, 'Gemini');
+      parsed = parseJsonItinerary(text, 'Gemini', profile.totalBudget);
       break;
     } catch (err) {
       parseError = err;
@@ -705,7 +716,7 @@ async function callGroqItinerary(profile) {
         err.retryable = true;
         throw err;
       }
-      const parsed = parseJsonItinerary(text, 'Groq');
+      const parsed = parseJsonItinerary(text, 'Groq', profile.totalBudget);
       parsed.source = 'groq';
       return parsed;
     } catch (cause) {
@@ -759,6 +770,23 @@ const WEEKEND_CALENDAR_JSON_SCHEMA = `{
           "duration": "String (always '3 Days')",
           "estimatedBudget": "Number (Must be <= the per-trip budget)",
           "vibe": "String (e.g., 'Monsoon Trek & Coffee')"
+        }
+      ]
+    }
+  ]
+}`;
+
+const MAJOR_CALENDAR_JSON_SCHEMA = `{
+  "calendar": [
+    {
+      "month": "String (e.g., 'Oct')",
+      "trips": [
+        {
+          "destination": "String (e.g., 'Leh-Ladakh')",
+          "distanceFromHome": "Number (approx. km from home)",
+          "duration": "String (e.g., '8 Days')",
+          "estimatedBudget": "Number (Must be <= the per-trip budget)",
+          "vibe": "String (e.g., 'High-altitude Road Trip')"
         }
       ]
     }
@@ -994,35 +1022,6 @@ async function callGeminiWeekendCalendar(profile) {
 }
 
 async function callGroqWeekendCalendar(profile) {
-  const calendarPrompt = buildWeekendCalendarPrompt(profile);
-  return callGroqWithRetry(profile, calendarPrompt, GROQ_MAX_ATTEMPTS)
-    .then(parseGroqWeekendCalendar(text, 'Groq', profile))
-    .then(plan => { plan.source = 'groq'; return plan; });
-}
-
-async function callGeminiWeekendCalendar(profile) {
-  const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-  let lastErr;
-  for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
-    let out;
-    try {
-      const response = await callGemini(profile, buildWeekendCalendarPrompt(profile), { temp: 0.4, json: true });
-      for (const text of response.textParts.reverse()) {
-        try { out = normalizeWeekendCalendar(parseWeekendCalendarJson(text, 'Gemini'), profile); break; }
-        catch (_) { /* try next text part */ }
-      }
-      if (!out) { const e = new Error('Gemini returned an invalid weekend calendar. Please try again.'); e.code = 'AI_PROVIDER_FAILED'; e.retryable = true; throw e; }
-      return out;
-    } catch (cause) {
-      if (attempt === GEMINI_MAX_ATTEMPTS) throw cause;
-      if (!cause || cause.code === 'MISSING_API_KEY') throw cause;
-      if (!cause.retryable && cause.rateLimited) { const derr = new Error(cause.message); derr.geminiQuotaLimited = true; derr.code = cause.code; throw derr; }
-      lastErr = cause;
-      await delay(2500 * attempt);
-    }
-  }
-  throw lastErr;
-}
   const model = process.env.GROQ_MODEL || 'openai/gpt-oss-20b';
   const isReasoningModel = /gpt-oss|qwen\/qwen3/.test(model);
   const requestBody = {
@@ -1079,6 +1078,30 @@ async function callGeminiWeekendCalendar(profile) {
   const err = new Error('Could not reach Groq. Check your network connection and try again.');
   err.code = 'AI_PROVIDER_FAILED';
   throw err;
+}
+
+async function callGeminiWeekendCalendar(profile) {
+  const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+  let lastErr;
+  for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
+    let out;
+    try {
+      const response = await callGemini(profile, buildWeekendCalendarPrompt(profile), { temp: 0.4, json: true });
+      for (const text of response.textParts.reverse()) {
+        try { out = normalizeWeekendCalendar(parseWeekendCalendarJson(text, 'Gemini'), profile); break; }
+        catch (_) { /* try next text part */ }
+      }
+      if (!out) { const e = new Error('Gemini returned an invalid weekend calendar. Please try again.'); e.code = 'AI_PROVIDER_FAILED'; e.retryable = true; throw e; }
+      return out;
+    } catch (cause) {
+      if (attempt === GEMINI_MAX_ATTEMPTS) throw cause;
+      if (!cause || cause.code === 'MISSING_API_KEY') throw cause;
+      if (!cause.retryable && cause.rateLimited) { const derr = new Error(cause.message); derr.geminiQuotaLimited = true; derr.code = cause.code; throw derr; }
+      lastErr = cause;
+      await delay(2500 * attempt);
+    }
+  }
+  throw lastErr;
 }
 
 function resolvedCityCoords(home) {
@@ -1158,4 +1181,359 @@ async function getAIWeekendCalendar(profile) {
   return plan;
 }
 
-module.exports = { getAIPlan, normalizeAIPlan, getAIItinerary, normalizeItinerary, getAIWeekendCalendar, normalizeWeekendCalendar };
+function buildMajorCalendarPrompt(profile) {
+  const tripCount = Math.min(12, Math.max(1, Math.round(asNumber(profile && profile.majorTripCount, 1) || 1)));
+  const durationDays = Math.min(10, Math.max(7, Math.round(asNumber(profile && profile.durSlider, 7) || 7)));
+  return `You are an expert travel planner generating a yearly major holiday strategy for long trips across India.
+
+Constraints:
+- Origin: ${profile.home}
+- Total Major Trips: Exactly ${tripCount} distinct trips.
+- Trip Duration: Exactly ${durationDays} days each.
+- Budget: Maximum INR ${profile.majorBudget} per trip for ${profile.travelers} traveler(s).
+- Travelers: ${profile.travelers} (${profile.travelerType})
+- These are big annual trips (${durationDays} days), so destinations can be anywhere in India reachable by train or flight from ${profile.home}.
+${profile.majorRadius > 0
+        ? `- Travel radius: choose destinations no farther than ${profile.majorRadius} km (straight-line) from ${profile.home}. Prefer the best spots that fit this radius.`
+        : ''}
+
+Cost Estimation:
+- "estimatedBudget" must be the estimated all-in cost of the entire ${durationDays}-day trip for all ${profile.travelers} traveler(s), in INR: return travel fare (train/flight), stay, food and activities. Use realistic typical Indian prices. Never exceed the maximum per-trip budget.
+
+Distribution Instructions:
+- Spread exactly ${tripCount} trip${tripCount === 1 ? '' : 's'} across the 12 calendar months (Jan to Dec).
+- Put at most one trip in a month and place each trip in a different month, so other months stay empty.
+- Match seasonality for long holidays: winter (Oct-Mar) for hill stations, deserts and heritage cities; summer (Apr-Jun) for high-altitude escapes and the North East; monsoon (Jul-Sep) for Kerala, Coorg or Meghalaya. Always favour great weather for a ${durationDays}-day stay.
+- Pick real, distinct, iconic destinations from ${profile.home} (e.g. Leh-Ladakh, Andaman Islands, Sikkim-Darjeeling, Kerala backwaters, Kashmir, Rajasthan, Meghalaya, Spiti Valley). Never repeat a destination.
+
+Output Format: You MUST respond ONLY in valid JSON using the exact schema below.
+${MAJOR_CALENDAR_JSON_SCHEMA}`;
+}
+
+function normalizeMajorCalendar(raw, profile) {
+  if (!raw || typeof raw !== 'object') {
+    const err = new Error('AI returned an invalid major trips calendar. Please try again.');
+    err.code = 'AI_PROVIDER_FAILED';
+    throw err;
+  }
+
+  const tripCount = Math.min(12, Math.max(1, Math.round(asNumber(profile && profile.majorTripCount, 1) || 1)));
+  const durationDays = Math.min(10, Math.max(7, Math.round(asNumber(profile && profile.durSlider, 7) || 7)));
+  const durationLabel = `${durationDays} Days`;
+  const maxBudget = Math.max(0, asNumber(profile && profile.majorBudget, 45000) || 45000);
+  const radiusLimit = Math.max(0, asNumber(profile && profile.majorRadius, 0) || 0);
+  const homeCoords = radiusLimit > 0 ? resolvedCityCoords(profile && profile.home) : null;
+
+  const seen = new Set();
+  const pool = [];
+  const rawMonths = Array.isArray(raw.calendar) ? raw.calendar : [];
+  for (const month of rawMonths) {
+    const label = asText(month && month.month);
+    const monthIndex = WEEKEND_CALENDAR_MONTHS.findIndex(x => x.toLowerCase() === label.toLowerCase());
+    const rawTrips = month && Array.isArray(month.trips) ? month.trips : [];
+    for (const item of rawTrips) {
+      if (!item || typeof item !== 'object' || !asText(item.destination)) continue;
+      const key = asText(item.destination).toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const rawDistance = item.distanceFromHome !== undefined ? item.distanceFromHome : item.distanceFromBangalore;
+      let km = Math.max(0, asNumber(rawDistance, 0));
+      if (radiusLimit > 0) {
+        if (km > 0) {
+          if (km > radiusLimit) continue;
+        } else {
+          const destCoords = resolvedCityCoords(key);
+          if (destCoords && homeCoords) {
+            km = Math.round(haversine(homeCoords, destCoords));
+            if (km > radiusLimit) continue;
+          }
+        }
+      }
+      pool.push({
+        monthIndex,
+        trip: {
+          destination: asText(item.destination),
+          distanceFromHome: km,
+          duration: durationLabel,
+          estimatedBudget: Math.round(Math.min(maxBudget, Math.max(0, asNumber(item.estimatedBudget, 0)))),
+          vibe: asText(item.vibe)
+        }
+      });
+    }
+  }
+
+  const calendar = WEEKEND_CALENDAR_MONTHS.map(() => []);
+  let placed = 0;
+  for (const item of pool) {
+    if (placed >= tripCount) break;
+    if (item.monthIndex >= 0 && calendar[item.monthIndex].length === 0) {
+      item.taken = true;
+      calendar[item.monthIndex].push(item.trip);
+      placed++;
+    }
+  }
+  for (const item of pool) {
+    if (placed >= tripCount) break;
+    if (item.taken) continue;
+    const empty = calendar.findIndex(month => month.length === 0);
+    if (empty < 0) break;
+    item.taken = true;
+    calendar[empty].push(item.trip);
+    placed++;
+  }
+
+  const totalTrips = calendar.reduce((sum, month) => sum + month.length, 0);
+  if (!totalTrips) {
+    const hints = [];
+    if (radiusLimit > 0) hints.push('travel radius');
+    hints.push('per-trip budget');
+    const err = new Error(
+      hints.length
+        ? `No major trips could be planned within your ${hints.join(' and ')}. Try widening them.`
+        : 'AI returned an incomplete major trips calendar. Please try again.'
+    );
+    err.code = 'AI_PROVIDER_FAILED';
+    throw err;
+  }
+
+  const summary = asText(raw.summary) ||
+    `Your yearly major-trip plan schedules ${totalTrips} ${durationDays}-day trip${totalTrips === 1 ? '' : 's'} across 12 months, ` +
+    `each within INR ${maxBudget.toLocaleString('en-IN')}.`;
+
+  return {
+    calendar: calendar.map((trips, i) => ({ month: WEEKEND_CALENDAR_MONTHS[i], trips })),
+    summary,
+    currency: 'INR'
+  };
+}
+
+function parseJsonMajorCalendar(text, provider, profile) {
+  let candidate = '';
+  try {
+    const raw = String(text);
+    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    const unfenced = (fenced ? fenced[1] : raw).trim();
+    const start = unfenced.indexOf('{');
+    const end = unfenced.lastIndexOf('}');
+    candidate = start >= 0 && end > start ? unfenced.slice(start, end + 1) : unfenced;
+    return normalizeMajorCalendar(JSON.parse(candidate), profile);
+  } catch (cause) {
+    if (cause && cause.code === 'AI_PROVIDER_FAILED') {
+      console.error(`[llm] ${provider} major-calendar failed: ${cause.message}`);
+      console.error('[llm] raw AI output:', candidate && JSON.stringify(candidate, null, 2).slice(0, 4000));
+      throw cause;
+    }
+    const err = new Error(`${provider} returned an invalid major trips calendar. Please try again.`);
+    err.code = 'AI_PROVIDER_FAILED';
+    throw err;
+  }
+}
+
+async function callGroqMajorCalendar(profile) {
+  const model = process.env.GROQ_MODEL || 'openai/gpt-oss-20b';
+  const isReasoningModel = /gpt-oss|qwen\/qwen3/.test(model);
+  const requestBody = {
+    model,
+    messages: [
+      { role: 'system', content: 'You return strictly valid JSON and follow the requested schema.' },
+      { role: 'user', content: buildMajorCalendarPrompt(profile) }
+    ],
+    temperature: 0.4,
+    response_format: { type: 'json_object' }
+  };
+  if (isReasoningModel) {
+    requestBody.include_reasoning = false;
+    requestBody.reasoning_effort = 'low';
+  }
+  for (let attempt = 1; attempt <= GROQ_MAX_ATTEMPTS; attempt++) {
+    let res;
+    try {
+      res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${keys.groq}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+      if (!res.ok) {
+        const err = new Error(`Groq request failed (${res.status}). Please try again.`);
+        err.code = 'AI_PROVIDER_FAILED';
+        err.retryable = isTransientProviderStatus(res.status);
+        throw err;
+      }
+      const body = await res.json();
+      const text = body && body.choices && body.choices[0] && body.choices[0].message && body.choices[0].message.content;
+      if (!text) {
+        const err = new Error('Groq returned no usable major trips calendar. Please try again.');
+        err.code = 'AI_PROVIDER_FAILED';
+        err.retryable = true;
+        throw err;
+      }
+      const parsed = parseJsonMajorCalendar(text, 'Groq', profile);
+      parsed.source = 'groq';
+      return parsed;
+    } catch (cause) {
+      const isNetworkError = cause && (cause.name === 'AbortError' || cause.name === 'TypeError');
+      const retryable = isNetworkError || (cause && cause.retryable);
+      if (!retryable || attempt === GROQ_MAX_ATTEMPTS) {
+        if (cause && cause.code === 'AI_PROVIDER_FAILED') throw cause;
+        break;
+      }
+      await delay(2000 * attempt);
+    }
+  }
+  const err = new Error('Could not reach Groq. Check your network connection and try again.');
+  err.code = 'AI_PROVIDER_FAILED';
+  throw err;
+}
+
+async function callGeminiMajorCalendar(profile) {
+  const prompt = buildMajorCalendarPrompt(profile);
+  const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
+    encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(keys.gemini);
+  let lastError;
+  for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
+    let res;
+    try {
+      res = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.4, responseMimeType: 'application/json' }
+        })
+      });
+    } catch (cause) {
+      lastError = new Error('Could not reach Gemini. Check your network connection and try again.');
+      lastError.code = 'AI_PROVIDER_FAILED';
+      lastError.retryable = true;
+      if (attempt === GEMINI_MAX_ATTEMPTS) break;
+      await delay(2000 * attempt);
+      continue;
+    }
+    if (!res.ok) {
+      let detail = '';
+      try {
+        const body = await res.json();
+        detail = body && body.error && body.error.message ? body.error.message : '';
+      } catch (_) { /* Response was not JSON. */ }
+      const err = new Error(`Gemini request failed (${res.status})${detail ? `: ${detail}` : ''}`);
+      err.code = 'AI_PROVIDER_FAILED';
+      err.geminiQuotaLimited = res.status === 429 ||
+        (res.status === 403 && /(quota|rate.?limit|resource exhausted|limit exceeded)/i.test(detail));
+      err.retryable = isTransientProviderStatus(res.status);
+      lastError = err;
+      if (!err.retryable || attempt === GEMINI_MAX_ATTEMPTS) break;
+      await delay(2000 * attempt);
+      continue;
+    }
+    const j = await res.json();
+    const candidate = j && j.candidates && j.candidates[0];
+    const parts = candidate && candidate.content && Array.isArray(candidate.content.parts)
+      ? candidate.content.parts
+      : [];
+    const textParts = parts.map(part => part && part.text).filter(Boolean).reverse();
+    if (!textParts.length) {
+      lastError = new Error('Gemini returned no usable major trips calendar. Please try again.');
+      lastError.code = 'AI_PROVIDER_FAILED';
+      lastError.retryable = true;
+      if (attempt === GEMINI_MAX_ATTEMPTS) break;
+      await delay(2000 * attempt);
+      continue;
+    }
+    let parsed;
+    let parseError;
+    for (const text of textParts) {
+      try {
+        parsed = parseJsonMajorCalendar(text, 'Gemini', profile);
+        break;
+      } catch (err) {
+        parseError = err;
+      }
+    }
+    if (parsed) {
+      parsed.source = 'gemini';
+      return parsed;
+    }
+    lastError = parseError || lastError;
+    if (attempt === GEMINI_MAX_ATTEMPTS) break;
+    await delay(2000 * attempt);
+  }
+  const err = lastError && lastError.code === 'AI_PROVIDER_FAILED'
+    ? lastError
+    : new Error('Gemini could not generate a major trips calendar. Please try again.');
+  err.code = 'AI_PROVIDER_FAILED';
+  throw err;
+}
+
+function fillMissingMajorTrips(calendar, profile) {
+  const tripCount = Math.min(12, Math.max(1, Math.round(asNumber(profile && profile.majorTripCount, 1) || 1)));
+  const durationDays = Math.min(10, Math.max(7, Math.round(asNumber(profile && profile.durSlider, 7) || 7)));
+  const maxBudget = Math.max(0, asNumber(profile && profile.majorBudget, 45000) || 45000);
+  const radiusLimit = Math.max(0, asNumber(profile && profile.majorRadius, 0) || 0);
+  const travelers = Math.max(1, Math.round(asNumber(profile && profile.travelers, 1) || 1));
+  const home = resolvedCityCoords(profile && profile.home);
+  const existing = new Set(calendar.flatMap(month => month.trips.map(t => t.destination.toLowerCase())));
+  let missing = tripCount - calendar.reduce((sum, month) => sum + month.trips.length, 0);
+  if (missing <= 0 || !home) return;
+
+  const pool = DESTINATIONS
+    .map(d => {
+      const km = haversine(home, d);
+      const cost = Math.round(d.cost * travelers * durationDays);
+      return { d, km, cost, fits: cost <= maxBudget && !existing.has(d.name.toLowerCase()) };
+    })
+    .filter(entry => entry.fits && (radiusLimit <= 0 || entry.km <= radiusLimit))
+    .sort((a, b) => a.km - b.km);
+
+  let pick = 0;
+  for (const month of calendar) {
+    if (missing <= 0) break;
+    if (month.trips.length >= 1) continue;
+    while (pick < pool.length && existing.has(pool[pick].d.name.toLowerCase())) pick++;
+    if (pick >= pool.length) break;
+    const entry = pool[pick];
+    existing.add(entry.d.name.toLowerCase());
+    month.trips.push({
+      destination: entry.d.name,
+      distanceFromHome: Math.round(entry.km),
+      duration: `${durationDays} Days`,
+      estimatedBudget: entry.cost,
+      vibe: entry.d.hl
+    });
+    pick++;
+    missing--;
+  }
+}
+
+async function getAIMajorCalendar(profile) {
+  let plan;
+  if (status.gemini) {
+    try {
+      plan = await callGeminiMajorCalendar(profile);
+    } catch (err) {
+      if (!status.groq) throw err;
+      plan = await callGroqMajorCalendar(profile);
+      plan.fallbackReason = err.geminiQuotaLimited
+        ? 'Gemini quota or rate limit reached; generated with Groq.'
+        : 'Gemini was temporarily unavailable; generated with Groq.';
+    }
+  } else if (status.groq) {
+    plan = await callGroqMajorCalendar(profile);
+  } else {
+    const err = new Error('No AI provider is configured. Add GEMINI_API_KEY, GROQ_API_KEY, or both to .env and restart the server.');
+    err.code = 'MISSING_API_KEY';
+    throw err;
+  }
+  fillMissingMajorTrips(plan.calendar, profile);
+  const tripCount = Math.min(12, Math.max(1, Math.round(asNumber(profile && profile.majorTripCount, 1) || 1)));
+  const totalTrips = plan.calendar.reduce((sum, month) => sum + month.trips.length, 0);
+  if (totalTrips < tripCount) {
+    plan.paddedWarning = `Only ${totalTrips} major trips fit within the per-trip budget.`;
+  }
+  return plan;
+}
+
+module.exports = { getAIPlan, normalizeAIPlan, getAIItinerary, normalizeItinerary, getAIWeekendCalendar, normalizeWeekendCalendar, getAIMajorCalendar };

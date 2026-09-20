@@ -21,7 +21,8 @@ const keys = {
   weather: process.env.WEATHER_API_KEY || '',
   aerodatabox: process.env.AERODATABOX_API_KEY || '',
   gemini: process.env.GEMINI_API_KEY || '',
-  groq: process.env.GROQ_API_KEY || ''
+  groq: process.env.GROQ_API_KEY || '',
+  openai: process.env.OPENAI_API_KEY || ''
 };
 
 function isValid(value, type) {
@@ -36,13 +37,15 @@ const status = {
   aerodatabox: integrations.aerodatabox && isValid(keys.aerodatabox, 'aerodatabox'),
   googleMaps: integrations.maps && isValid(process.env.GOOGLE_MAPS_API_KEY || '', 'googleMaps'),
   gemini: isValid(keys.gemini, 'gemini'),
-  groq: isValid(keys.groq, 'groq')
+  groq: isValid(keys.groq, 'groq'),
+  openai: isValid(keys.openai, 'openai')
 };
 
 keys.googleMaps = process.env.GOOGLE_MAPS_API_KEY || '';
 
-// Groq can keep planning available when Gemini is unavailable or quota-limited.
-status.planner = status.gemini || status.groq;
+// Multiple providers let the planner stay available when one is rate-limited or
+// down; generateJSON tries them in sequence and falls through automatically.
+status.planner = status.gemini || status.groq || status.openai;
 // Gemini Google Maps grounding authenticates with GEMINI_API_KEY, not the
 // separate Google Maps Platform key used by the optional direct Maps API.
 status.geminiMaps = status.gemini && integrations.geminiMapsGrounding;

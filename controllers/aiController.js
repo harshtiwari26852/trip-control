@@ -3,7 +3,7 @@ const { status } = require('../utils/apiKeys');
 const weather = require('../utils/weather');
 const travel = require('../utils/travel');
 const geo = require('../utils/geo');
-const { getAIPlan, getAIItinerary, getAIWeekendCalendar } = require('../utils/llm');
+const { getAIPlan, getAIItinerary, getAIWeekendCalendar, getAIMajorCalendar } = require('../utils/llm');
 
 function getProfileFromBody(body) {
   return {
@@ -172,6 +172,46 @@ exports.generateWeekendCalendar = async (req, res, next) => {
           : 'Weekend calendar generated with Groq.'),
         `Exactly ${slotTarget} trips distributed across 12 months.`,
         'Estimated costs based on typical weekend budgets. Actual prices may vary.'
+      ].filter(Boolean)
+    });
+  } catch (err) {
+    if (err.code === 'MISSING_API_KEY') {
+      return res.status(503).json({ error: err.message, ok: false });
+    }
+    if (err.code === 'AI_PROVIDER_FAILED') {
+      return res.status(502).json({ error: err.message, ok: false });
+    }
+    next(err);
+  }
+};
+
+exports.generateMajorCalendar = async (req, res, next) => {
+  try {
+    if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+
+    const body = req.body || {};
+    const majorTripCount = Math.min(12, Math.max(1, Math.round(Number(body.majorTripCount) || 1)));
+    const profile = {
+      home: typeof body.home === 'string' && body.home.trim() ? body.home.trim() : 'Mumbai',
+      majorTripCount,
+      durSlider: Math.min(10, Math.max(7, Math.round(Number(body.durSlider) || 7))),
+      majorBudget: Math.max(0, Number(body.majorBudget) || 45000),
+      majorRadius: Math.max(0, Number(body.majorRadius) || 0),
+      travelers: Math.min(12, Math.max(1, Math.round(Number(body.travelers) || 1))),
+      travelerType: typeof body.travelerType === 'string' ? body.travelerType : 'solo'
+    };
+
+    const majorCalendar = await getAIMajorCalendar(profile);
+
+    res.json({
+      ok: true,
+      majorCalendar,
+      warnings: [
+        majorCalendar.fallbackReason || (majorCalendar.source === 'gemini'
+          ? 'Major trips calendar generated with Gemini.'
+          : 'Major trips calendar generated with Groq.'),
+        `Exactly ${majorTripCount} major trip(s) distributed across 12 months.`,
+        'Estimated costs based on typical holiday budgets. Actual prices may vary.'
       ].filter(Boolean)
     });
   } catch (err) {
