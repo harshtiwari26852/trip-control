@@ -128,9 +128,10 @@ exports.postSignup = [
         });
       })
       .then(() => {
-        res.json({ ok: true });
+        if (!res.headersSent) res.json({ ok: true });
       })
       .catch(err => {
+        if (res.headersSent) return;
         if (err.code === 11000) {
           return res.status(422).json({
             errors: ["An account with that email already exists. Please log in."]

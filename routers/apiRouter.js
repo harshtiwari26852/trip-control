@@ -41,8 +41,10 @@ apiRouter.get('/api/ai/pricing/:name', aiController.getPricing);
 apiRouter.post('/api/plan-calendar', calendarLimiter, tripwiseController.planCalendar);
 apiRouter.post('/api/trip-details', detailsLimiter, tripwiseController.tripDetails);
 
+apiRouter.get('/api/plans', tripwiseController.listPlans);
 apiRouter.post('/api/plans', tripwiseController.savePlan);
 apiRouter.get('/api/plans/latest', tripwiseController.getLatestPlan);
 apiRouter.get('/api/plans/:id', tripwiseController.getPlanById);
+apiRouter.delete('/api/plans/:id', tripwiseController.deletePlan);
 
 module.exports = apiRouter;

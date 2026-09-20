@@ -29,7 +29,7 @@ const requestSchema = {
   destination: string({ min: 1, max: 120 }),
   start_date: isoDate(),
   end_date: isoDate(),
-  duration_days: number({ min: 3, max: 10, integer: true }),
+  duration_days: number({ min: 1, max: 10, integer: true }),
   traveller_type: string({ enum: ['solo', 'couple', 'family', 'friends'] }),
   travellers: number({ min: 1, max: 50, integer: true }),
   budget: number({ min: 0, optional: true, default: 0 }),

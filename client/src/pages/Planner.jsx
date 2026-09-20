@@ -216,6 +216,7 @@ function MonthCard({ month, busyId, onOpen, onRegenerate }) {
 export default function Planner() {
   const { state } = useLocation()
   const goal = state?.goal
+  const planId = state?.planId
   const [plan, setPlan] = useState(() => ({ ...PLAN_DEFAULTS, ...tripConfigForGoal(goal) }))
   const [cities, setCities] = useState({})
   const [destinations, setDestinations] = useState([])
@@ -226,6 +227,7 @@ export default function Planner() {
   const [error, setError] = useState('')
   const [destinationError, setDestinationError] = useState('')
   const [selectedTrip, setSelectedTrip] = useState(null)
+  const [detailsData, setDetailsData] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -233,7 +235,7 @@ export default function Planner() {
       try {
         const [catalogue, savedRes] = await Promise.all([
           fetch('/api/destinations').then((r) => r.json()),
-          apiFetch('/api/plans/latest'),
+          planId ? apiFetch(`/api/plans/${planId}`) : apiFetch('/api/plans/latest'),
         ])
         if (cancelled) return
         setCities(catalogue.cities || {})
@@ -243,13 +245,33 @@ export default function Planner() {
           const saved = data.plan
           if (saved && (saved.inputs || saved.calendar)) {
             const merged = { ...PLAN_DEFAULTS, ...(saved.inputs || {}) }
-            const cfg = tripConfigForGoal(goal)
-            setPlan({ ...merged, tripType: cfg.tripType, mode: cfg.mode })
+            if (goal && !planId) {
+              const cfg = tripConfigForGoal(goal)
+              merged.tripType = cfg.tripType
+              merged.mode = cfg.mode
+            }
+            setPlan(merged)
             if (saved.calendar && Array.isArray(saved.calendar.months)) {
               setCalendar(saved.calendar)
-              setStatus('Restored your last saved plan.')
+              setStatus(planId ? 'Opened your saved plan.' : 'Restored your last saved plan.')
+            } else if (planId && merged.tripType === 'destination' && saved.details) {
+              const days = durationDays(merged.startDate, merged.endDate) || merged.duration || 3
+              setDetailsData(saved.details)
+              setSelectedTrip({
+                trip_id: planId,
+                window_id: planId,
+                kind: days === 3 ? 'weekend' : 'major',
+                destination: merged.destination,
+                start_date: merged.startDate,
+                end_date: merged.endDate,
+                duration_days: days,
+                estimated_cost: merged.totalBudget,
+              })
+              setStatus('Opened your saved destination plan.')
             }
           }
+        } else if (planId) {
+          setStatus('Could not load that saved plan.')
         }
       } catch {
         if (!cancelled) setStatus('Could not load saved data. Please refresh and try again.')
@@ -260,7 +282,7 @@ export default function Planner() {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [goal])
+  }, [goal, planId])
 
   const isDestination = plan.tripType === 'destination'
   const destDuration = durationDays(plan.startDate, plan.endDate)
@@ -339,7 +361,47 @@ export default function Planner() {
     generateCalendar(lockedSlotsFromCalendar(calendar, windowId))
   }
 
+  function openTrip(trip) {
+    setDetailsData(null)
+    setSelectedTrip(trip)
+  }
+
+  async function handleSaveFromModal(details) {
+    if (isDestination) {
+      const res = await apiFetch('/api/plans', { method: 'POST', body: { inputs: plan, calendar: null, details } })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not save your plan.')
+      setStatus('Destination plan saved.')
+      return
+    }
+    if (!calendar) throw new Error('Generate a calendar before saving.')
+    const res = await apiFetch('/api/plans', { method: 'POST', body: { inputs: plan, calendar } })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Could not save your plan.')
+    setStatus('Plan saved.')
+  }
+
   async function savePlan() {
+    if (isDestination) {
+      if (!plan.destination.trim()) {
+        setStatus('Type a destination city first.')
+        return
+      }
+      if (!plan.startDate || !plan.endDate) {
+        setStatus('Pick valid start and end dates before saving.')
+        return
+      }
+      setStatus('Saving…')
+      try {
+        const res = await apiFetch('/api/plans', { method: 'POST', body: { inputs: plan, calendar: null } })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Could not save your plan.')
+        setStatus('Destination plan saved.')
+      } catch {
+        setStatus('Could not save your plan.')
+      }
+      return
+    }
     if (!calendar) {
       setStatus('Generate a calendar before saving.')
       return
@@ -361,8 +423,8 @@ export default function Planner() {
       setDestinationError('Type a destination city first.')
       return
     }
-    if (!destDuration || destDuration < 3) {
-      setDestinationError('Pick start and end dates of at least 3 days.')
+    if (!destDuration || destDuration < 1) {
+      setDestinationError('Pick valid start and end dates.')
       return
     }
     if (destDuration > 10) {
@@ -371,6 +433,7 @@ export default function Planner() {
     }
     const kind = destDuration === 3 ? 'weekend' : 'major'
     const id = `dest-${Date.now()}`
+    setDetailsData(null)
     setSelectedTrip({
       trip_id: id,
       window_id: id,
@@ -440,6 +503,16 @@ export default function Planner() {
             <div className="grid gap-5 sm:grid-cols-2">
               {isDestination ? (
                 <>
+                  <div className="sm:col-span-2">
+                    <Field label="Trip type">
+                      <select value={plan.tripType} onChange={(e) => update('tripType', e.target.value)} className={selectClass}>
+                        <option value="destination">Specific destination</option>
+                        <option value="weekend">Weekend getaway</option>
+                        <option value="major">Extended vacation</option>
+                        <option value="both">Both</option>
+                      </select>
+                    </Field>
+                  </div>
                   <Field label="Home city">
                     <input
                       type="text"
@@ -500,20 +573,18 @@ export default function Planner() {
                     </select>
                   </Field>
 
-                  {destDuration >= 3 ? (
+                  {destDuration >= 1 ? (
                     <Field label="Duration">
                       <div className="border-input bg-background text-foreground flex h-12 w-full items-center rounded-lg border border-border px-4 text-base">
-                        {destDuration} days · {destDuration === 3 ? 'weekend plan' : 'extended plan'}
+                        {destDuration} {destDuration === 1 ? 'day' : 'days'} · {destDuration < 3 ? 'short trip' : destDuration === 3 ? 'weekend plan' : 'extended plan'}
                       </div>
                     </Field>
                   ) : (
-                    <NumberInput
-                      label="Duration (days)"
-                      value={plan.duration}
-                      min="3"
-                      max="10"
-                      onChange={(v) => update('duration', v)}
-                    />
+                    <Field label="Duration">
+                      <div className="border-input bg-muted text-muted-foreground flex h-12 w-full items-center rounded-lg border border-border px-4 text-base">
+                        Pick start and end dates
+                      </div>
+                    </Field>
                   )}
 
                   <NumberInput
@@ -576,24 +647,12 @@ export default function Planner() {
 
                   <Field label="Trip type">
                     <select value={plan.tripType} onChange={(e) => update('tripType', e.target.value)} className={selectClass}>
+                      <option value="destination">Specific destination</option>
                       <option value="weekend">Weekend getaway</option>
                       <option value="major">Extended vacation</option>
                       <option value="both">Both</option>
                     </select>
                   </Field>
-
-                  {plan.tripType === 'both' && (
-                    <Field label="Planner view">
-                      <div className="mt-2 flex rounded-full bg-muted p-1">
-                        <Toggle active={plan.mode !== 'major'} onClick={() => update('mode', 'weekends')}>
-                          Weekends
-                        </Toggle>
-                        <Toggle active={plan.mode === 'major'} onClick={() => update('mode', 'major')}>
-                          Major trip
-                        </Toggle>
-                      </div>
-                    </Field>
-                  )}
 
                   <Field label="Traveller type">
                     <select value={plan.traveler} onChange={(e) => travelerChange(e.target.value)} className={selectClass}>
@@ -729,7 +788,7 @@ export default function Planner() {
                     <p className="text-primary flex justify-between gap-3">
                       <span className="text-muted-foreground">Duration</span>
                       <span className="font-medium">
-                        {destDuration || plan.duration} days
+                        {destDuration || plan.duration} {(destDuration || plan.duration) === 1 ? 'day' : 'days'}
                       </span>
                     </p>
                     <p className="text-primary flex justify-between gap-3">
@@ -821,7 +880,7 @@ export default function Planner() {
                             key={month.month ?? i}
                             month={month}
                             busyId={busyId}
-                            onOpen={setSelectedTrip}
+                            onOpen={openTrip}
                             onRegenerate={regenerateSlot}
                           />
                         ))
@@ -847,7 +906,12 @@ export default function Planner() {
             weekendBudget={isDestination ? plan.totalBudget : plan.weekendBudget}
             majorBudget={isDestination ? plan.totalBudget : plan.majorBudget}
             pace={isDestination ? plan.pace : undefined}
-            onClose={() => setSelectedTrip(null)}
+            initialData={detailsData}
+            onSave={handleSaveFromModal}
+            onClose={() => {
+              setSelectedTrip(null)
+              setDetailsData(null)
+            }}
           />
         )}
       </div>

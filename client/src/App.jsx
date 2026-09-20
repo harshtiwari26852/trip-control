@@ -4,6 +4,7 @@ import Header from './components/Header'
 import Hero from './components/Hero'
 import Trips from './components/Trips'
 import Planner from './pages/Planner'
+import SavedPlans from './pages/SavedPlans'
 import Signin from './pages/Signin'
 import Signup from './pages/Signup'
 
@@ -35,6 +36,16 @@ function App() {
             <ProtectedRoute>
               <main className="pt-14">
                 <Planner key={location.key} />
+              </main>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/plans"
+          element={
+            <ProtectedRoute>
+              <main className="pt-14">
+                <SavedPlans />
               </main>
             </ProtectedRoute>
           }

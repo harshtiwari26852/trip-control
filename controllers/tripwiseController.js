@@ -153,17 +153,38 @@ exports.savePlan = async (req, res) => {
   const body = req.body || {};
   const inputs = body.inputs && typeof body.inputs === 'object' ? body.inputs : null;
   const calendar = body.calendar && typeof body.calendar === 'object' ? body.calendar : null;
-  if (!inputs || !calendar || !Array.isArray(calendar.months)) {
-    return res.status(400).json({ error: 'Expected { inputs, calendar } with a calendar.months array' });
+  const details = body.details && typeof body.details === 'object' ? body.details : null;
+  if (!inputs) {
+    return res.status(400).json({ error: 'Expected a plan with inputs' });
+  }
+  if (calendar && !Array.isArray(calendar.months)) {
+    return res.status(400).json({ error: 'calendar.months must be an array when provided' });
   }
 
   try {
-    const plan = await TripPlan.findOneAndUpdate(
-      { user: req.session.user._id },
-      { $set: { inputs, calendar, updatedAt: new Date() } },
-      { upsert: true, new: true }
-    );
+    const plan = await TripPlan.create({ user: req.session.user._id, inputs, calendar, details });
     return res.json({ ok: true, id: plan._id });
+  } catch (err) {
+    return nextError(res, err);
+  }
+};
+
+exports.listPlans = async (req, res) => {
+  if (!requireAuth(req, res)) return;
+  try {
+    const plans = await TripPlan.find({ user: req.session.user._id }).sort({ updatedAt: -1 });
+    return res.json({ ok: true, plans: plans.map(publicPlan) });
+  } catch (err) {
+    return nextError(res, err);
+  }
+};
+
+exports.deletePlan = async (req, res) => {
+  if (!requireAuth(req, res)) return;
+  try {
+    const plan = await TripPlan.findOneAndDelete({ _id: req.params.id, user: req.session.user._id });
+    if (!plan) return res.status(404).json({ error: 'Plan not found' });
+    return res.json({ ok: true });
   } catch (err) {
     return nextError(res, err);
   }
@@ -196,6 +217,7 @@ function publicPlan(plan) {
     id: plan._id,
     inputs: plan.inputs,
     calendar: plan.calendar,
+    details: plan.details || null,
     updated_at: plan.updatedAt,
     cached_details_count: Object.keys(plan.cachedDetails || {}).length
   };

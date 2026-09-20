@@ -18,6 +18,10 @@ const tripPlanSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: null
     },
+    details: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
     cachedDetails: {
       type: mongoose.Schema.Types.Mixed,
       default: {}

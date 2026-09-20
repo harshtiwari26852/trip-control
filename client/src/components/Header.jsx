@@ -5,12 +5,6 @@ import Logo from './Logo'
 import PlanGoalModal from './PlanGoalModal'
 import { useAuth } from '../context/AuthContext'
 
-const NAV_LINKS = [
-  { label: 'Plan', href: '/chat' },
-  { label: 'Explore', href: '#' },
-  { label: 'How it works', href: '#' },
-]
-
 function Avatar({ showChevron = true, onLogout }) {
   const { user } = useAuth()
 
@@ -111,23 +105,17 @@ export default function Header() {
             <Link to="/" className="flex cursor-pointer items-center" aria-label="TripWise home">
               <Logo className="h-[22px] w-auto text-primary" />
             </Link>
-            <ul className="hidden items-center gap-6 lg:flex">
-              {NAV_LINKS.map((link) => (
-                <li key={link.label}>
-                  <Link
-                    to={link.href}
-                    className="text-sm font-medium text-foreground transition-colors hover:text-primary/70"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
           </div>
 
           <div className="flex items-center gap-4">
             {user ? (
               <>
+                <Link
+                  to="/plans"
+                  className="border-input bg-muted hover:bg-accent inline-flex h-10 items-center justify-center rounded-full border px-5 text-[13px] leading-none font-semibold text-foreground transition-colors"
+                >
+                  Saved plans
+                </Link>
                 <button
                   type="button"
                   onClick={() => setPlanModalOpen(true)}
@@ -144,6 +132,12 @@ export default function Header() {
                   className="border-input bg-muted hover:bg-accent inline-flex h-10 items-center justify-center rounded-full border px-5 text-[13px] leading-none font-semibold text-foreground transition-colors"
                 >
                   Sign in
+                </Link>
+                <Link
+                  to="/plans"
+                  className="border-input bg-muted hover:bg-accent inline-flex h-10 items-center justify-center rounded-full border px-5 text-[13px] leading-none font-semibold text-foreground transition-colors"
+                >
+                  Saved plans
                 </Link>
                 <button
                   type="button"
@@ -202,17 +196,15 @@ export default function Header() {
         {mobileOpen && (
           <div className="bg-muted border-b border-border px-4 py-4">
             <ul className="flex flex-col gap-3">
-              {NAV_LINKS.map((link) => (
-                <li key={link.label}>
-                  <Link
-                    to={link.href}
-                    onClick={() => setMobileOpen(false)}
-                    className="text-foreground block py-1 text-base font-medium transition-colors hover:text-primary/70"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
+              <li>
+                <Link
+                  to="/plans"
+                  onClick={() => setMobileOpen(false)}
+                  className="text-foreground block py-1 text-base font-medium transition-colors hover:text-primary/70"
+                >
+                  Saved plans
+                </Link>
+              </li>
             </ul>
           </div>
         )}

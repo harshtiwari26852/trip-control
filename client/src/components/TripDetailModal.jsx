@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Bus, Car, Hotel, MapPin, Plane, Route, Sparkles, TrainFront, X,
+  Bus, Car, Hotel, MapPin, Plane, Route, Save, Sparkles, TrainFront, X,
 } from 'lucide-react'
 import { apiFetch } from '../lib/api'
 import { formatDateRange } from '../lib/planner'
@@ -19,11 +19,6 @@ function money2(value) {
   return Number.isFinite(n) ? `₹${Math.round(n).toLocaleString('en-IN')}` : '₹0'
 }
 
-function travelLabel(method) {
-  const map = { flight: 'Flight', train: 'Train', drive: 'Drive', car: 'Drive', bus: 'Bus', walk: 'Walk' }
-  return map[method] || method || ''
-}
-
 function transportIcon(method) {
   if (method === 'flight') return Plane
   if (method === 'train') return TrainFront
@@ -31,6 +26,15 @@ function transportIcon(method) {
   if (method === 'drive' || method === 'car') return Car
   return MapPin
 }
+
+const BREAKDOWN_ORDER = [
+  ['Transport', 'transport'],
+  ['Stay', 'stay'],
+  ['Food', 'food'],
+  ['Activities', 'activities'],
+  ['Local transport', 'local_transport'],
+  ['Miscellaneous', 'miscellaneous'],
+]
 
 function BlockTitle({ children }) {
   return <p className="text-primary text-base font-bold">{children}</p>
@@ -65,19 +69,25 @@ function MoneyRows({ rows }) {
   )
 }
 
-export default function TripDetailModal({ trip, home, travellers, traveler, weekendBudget, majorBudget, travelMode, pace, onClose }) {
+export default function TripDetailModal({ trip, home, travellers, traveler, weekendBudget, majorBudget, travelMode, pace, initialData, onSave, onClose }) {
   const kind = (trip && trip.kind) || 'weekend'
   const destination = trip && trip.destination
   const [tab, setTab] = useState('overview')
   const [state, setState] = useState({ busy: true, data: null, error: '', regenerate: false })
+  const [saveStatus, setSaveStatus] = useState('')
   const scrollRef = useRef(null)
 
   useEffect(() => {
     setTab('overview')
+    setSaveStatus('')
+    if (initialData) {
+      setState({ busy: false, data: initialData, error: '', regenerate: false })
+      return
+    }
     setState({ busy: true, data: null, error: '', regenerate: false })
     load(false, null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip && trip.trip_id, trip && trip.window_id, home, destination, travellers, traveler])
+  }, [trip && trip.trip_id, trip && trip.window_id, home, destination, travellers, traveler, initialData])
 
   async function load(regenerate) {
     setState((s) => ({ ...s, busy: true, error: '', regenerate: !!regenerate }))
@@ -113,6 +123,17 @@ export default function TripDetailModal({ trip, home, travellers, traveler, week
   const d = state.data
   const overBudget = Boolean(d?.cost_breakdown && d.cost_breakdown.total > (kind === 'weekend' ? weekendBudget : majorBudget) && d.cost_breakdown.within_budget !== true)
 
+  async function handleSave() {
+    if (!d || !onSave) return
+    setSaveStatus('saving')
+    try {
+      await onSave(d)
+      setSaveStatus('saved')
+    } catch {
+      setSaveStatus('error')
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
       <button aria-label="Close" onClick={onClose} className="bg-black/40 absolute inset-0" />
@@ -130,6 +151,27 @@ export default function TripDetailModal({ trip, home, travellers, traveler, week
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {saveStatus === 'saved' && (
+                <span className="bg-green-100 text-green-800 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold">
+                  Plan saved
+                </span>
+              )}
+              {saveStatus === 'error' && (
+                <span className="bg-red-50 text-[#5c1a14] inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold">
+                  Could not save
+                </span>
+              )}
+              {onSave && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={state.busy || !d || saveStatus === 'saving'}
+                  className="border-input bg-background hover:bg-accent border-border inline-flex h-9 items-center gap-1.5 rounded-full border px-4 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Save className="size-3.5" />
+                  {saveStatus === 'saving' ? 'Saving…' : 'Save plan'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => load(true)}
@@ -207,7 +249,11 @@ export default function TripDetailModal({ trip, home, travellers, traveler, week
               {d.transport?.options?.length ? (
                 <div className="flex flex-col gap-3">
                   {d.transport.options.map((o, i) => {
-                    const Icon = transportIcon(o.method)
+                    const Icon = transportIcon(String(o.mode || o.method || '').toLowerCase())
+                    const perPerson = Number(o.estimated_cost_per_person) > 0 ? Number(o.estimated_cost_per_person) : 0
+                    const total = Number(o.estimated_cost) > 0 ? Number(o.estimated_cost) : 0
+                    const cost = total || perPerson
+                    const duration = o.duration || (Number(o.duration_hours) > 0 ? `${o.duration_hours} hrs` : '')
                     return (
                       <div key={i} className="flex items-start gap-3 rounded-2xl border border-border p-4">
                         <span className="bg-secondary text-primary flex size-9 shrink-0 items-center justify-center rounded-full">
@@ -215,11 +261,28 @@ export default function TripDetailModal({ trip, home, travellers, traveler, week
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <BlockTitle>{travelLabel(o.method)}</BlockTitle>
-                            {o.estimated_cost > 0 && <span className="text-primary text-xs font-semibold">{money2(o.estimated_cost)}</span>}
+                            <BlockTitle>{o.mode || o.method || 'Transport option'}</BlockTitle>
+                            {cost > 0 && (
+                              <span className="text-primary text-xs font-semibold">
+                                {money2(cost)}
+                                {perPerson > 0 && !total ? ' /person' : ''}
+                              </span>
+                            )}
                           </div>
-                          {o.duration && <MutedP>{o.duration}</MutedP>}
-                          {o.description && <MutedP>{o.description}</MutedP>}
+                          {duration && <MutedP>{duration}</MutedP>}
+                          {(o.details || o.description) && <MutedP>{o.details || o.description}</MutedP>}
+                          {o.pros?.length ? (
+                            <div className="mt-2">
+                              <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-widest">Pros</p>
+                              <BulletList items={o.pros} />
+                            </div>
+                          ) : null}
+                          {o.cons?.length ? (
+                            <div className="mt-2">
+                              <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-widest">Cons</p>
+                              <BulletList items={o.cons} />
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     )
@@ -250,9 +313,10 @@ export default function TripDetailModal({ trip, home, travellers, traveler, week
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <BlockTitle>{o.name}</BlockTitle>
-                          {o.estimated_cost > 0 && <span className="text-primary text-xs font-semibold">{money2(o.estimated_cost)}/night</span>}
+                          {Number(o.price_per_night_estimate) > 0 && <span className="text-primary text-xs font-semibold">{money2(o.price_per_night_estimate)}/night</span>}
                         </div>
-                        {o.description && <MutedP>{o.description}</MutedP>}
+                        {(o.category || o.area) && <MutedP>{[o.category, o.area].filter(Boolean).join(' · ')}</MutedP>}
+                        {(o.why_good || o.description) && <MutedP>{o.why_good || o.description}</MutedP>}
                       </div>
                     </div>
                   ))}
@@ -314,7 +378,14 @@ export default function TripDetailModal({ trip, home, travellers, traveler, week
                   {money2(d.cost_breakdown?.total)}
                 </span>
               </div>
-              <MoneyRows rows={(d.cost_breakdown?.breakdown || []).map((row) => ({ label: row.label, amount: row.amount }))} />
+              <MoneyRows rows={(() => {
+                const b = d.cost_breakdown
+                if (!b) return []
+                if (Array.isArray(b.breakdown) && b.breakdown.length) {
+                  return b.breakdown.map((row) => ({ label: row.label, amount: row.amount }))
+                }
+                return BREAKDOWN_ORDER.map(([label, key]) => ({ label, amount: b[key] })).filter((r) => Number(r.amount) > 0)
+              })()} />
               {overBudget && (
                 <p className="bg-red-50 text-[#5c1a14] rounded-2xl px-4 py-3 text-sm font-medium">
                   This plan is over the per-trip budget. Use “Regenerate” for a plan within budget.
